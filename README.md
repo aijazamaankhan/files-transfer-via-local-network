@@ -46,8 +46,9 @@ and **F5** runs the app on the device selected in the status bar.
 * Pairing the emulator with the PC on the same machine: the emulator sits behind
   its own NAT, so discovery and QR scanning don't work there. Instead, on the
   emulator tap **Connect by IP**, enter `10.0.2.2:45872` (the emulator's alias
-  for your PC) and type the PIN the PC shows. For the PC to *send* to the
-  emulator, also run `adb forward tcp:45872 tcp:45872` once.
+  for your PC) and type the PIN the PC shows. Sending from the emulator to the
+  PC then works; sending from the PC *into* the emulator is blocked by the
+  emulator's NAT, so test that direction with a real phone.
 * Real phones on your Wi-Fi don't need any of this.
 
 ### First use
