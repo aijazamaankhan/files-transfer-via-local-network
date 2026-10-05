@@ -82,10 +82,11 @@ class SettingsScreen extends StatelessWidget {
                           initial: s.downloadDirectory,
                           title: 'Default download folder',
                         );
-                        if (dir != null)
+                        if (dir != null) {
                           await update(
                             (x) => x.copyWith(downloadDirectory: dir),
                           );
+                        }
                       },
                     ),
                     SwitchListTile(

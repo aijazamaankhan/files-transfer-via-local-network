@@ -215,8 +215,9 @@ class LanServer {
 
       case ['transfers', final id, 'files', final fileId] when method == 'PUT':
         final offset = int.tryParse(req.uri.queryParameters['offset'] ?? '');
-        if (offset == null || offset < 0)
+        if (offset == null || offset < 0) {
           throw ApiError(ErrorCodes.badRequest, 'offset');
+        }
         final received = await receiver.handleUpload(
           deviceId,
           id,

@@ -180,8 +180,9 @@ class PeerClient {
         if (e is HandshakeException) break; // wrong identity: don't try others
       }
     }
-    if (_activeHost != null && !ordered.contains(_activeHost))
+    if (_activeHost != null && !ordered.contains(_activeHost)) {
       _activeHost = null;
+    }
     throw classifyError(lastError!);
   }
 
@@ -209,8 +210,9 @@ class PeerClient {
       if (auth) await ensureAuthenticated();
       try {
         final req = await _open(method, path);
-        if (auth)
+        if (auth) {
           req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_token');
+        }
         if (body != null) {
           final bytes = utf8.encode(jsonEncode(body));
           req.headers.contentType = ContentType.json;
@@ -258,8 +260,9 @@ class PeerClient {
 
   Future<void> _authenticate() async {
     final s = secret;
-    if (s == null)
+    if (s == null) {
       throw const LanBeamException(FailureKind.unauthorized, 'not paired');
+    }
     final me = localInfo();
     final challenge = await _json(
       'POST',
@@ -294,8 +297,9 @@ class PeerClient {
       final ttl = (session['expiresIn'] as int?) ?? 3600;
       _tokenExpiry = DateTime.now().add(Duration(seconds: ttl - 60));
     } on PeerApiException catch (e) {
-      if (e.status == 401)
+      if (e.status == 401) {
         throw const LanBeamException(FailureKind.unauthorized);
+      }
       throw e.toLanBeam();
     }
   }
@@ -365,8 +369,9 @@ class PeerClient {
         throw const LanBeamException(FailureKind.untrustedCertificate);
       }
       final s = base64.decode(json['secret'] as String);
-      if (s.length != 32)
+      if (s.length != 32) {
         throw const LanBeamException(FailureKind.protocol, 'secret');
+      }
       secret = s;
       return PairingResult(device, s);
     } on PeerApiException catch (e) {

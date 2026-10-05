@@ -30,8 +30,9 @@ Future<Map<String, Object?>> readJsonBody(
   int maxBytes = Protocol.maxJsonBodyBytes,
 }) async {
   final declared = request.contentLength;
-  if (declared > maxBytes)
+  if (declared > maxBytes) {
     throw ApiError(ErrorCodes.badRequest, 'Body too large');
+  }
   final builder = BytesBuilder(copy: false);
   await for (final chunk in request) {
     builder.add(chunk);

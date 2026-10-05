@@ -31,13 +31,20 @@ class AndroidBridge {
   }
 
   Future<void> startTransferService(String title) async {
-    if (available)
+    if (available) {
       await _channel.invokeMethod('startTransferService', {'title': title});
+    }
   }
 
   Future<void> stopTransferService() async {
     if (available) await _channel.invokeMethod('stopTransferService');
   }
+
+  /// Requests WRITE_EXTERNAL_STORAGE on Android 9–10; true elsewhere.
+  Future<bool> requestLegacyStorage() async =>
+      await _channel.invokeMethod<bool>('requestLegacyStorage') ?? false;
+
+  Future<void> openAppSettings() => _channel.invokeMethod('openAppSettings');
 
   Future<void> scanMedia(List<String> paths) async {
     if (available && paths.isNotEmpty) {

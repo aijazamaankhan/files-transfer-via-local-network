@@ -37,37 +37,48 @@ Future<void> main(List<String> argv) async {
     return v;
   }
 
-  final data = opt('data') ?? p.join(Platform.environment['HOME'] ?? '.', '.lanbeam-cli');
+  final data =
+      opt('data') ??
+      p.join(Platform.environment['HOME'] ?? '.', '.lanbeam-cli');
   final name = opt('name') ?? 'LanBeam CLI';
   final out = opt('out') ?? p.join(data, 'received');
   final port = int.tryParse(opt('port') ?? '') ?? Protocol.defaultServicePort;
   final pinFile = opt('pin-file');
   if (args.isEmpty) {
-    print('usage: lanbeam_cli --data DIR [--name N] [--out DIR] serve|qr|pair-pin|devices|send');
+    print(
+      'usage: lanbeam_cli --data DIR [--name N] [--out DIR] serve|qr|pair-pin|devices|send',
+    );
     exit(64);
   }
 
-  final engine = LanBeamEngine(EngineConfig(
-    dataDirectory: data,
-    deviceType: DeviceType.desktop,
-    defaultSettings: AppSettings(
-      deviceName: name,
-      downloadDirectory: out,
-      askWhereToSave: false,
-      autoAcceptTrusted: true,
-      conflictPolicy: ConflictPolicy.rename,
-      servicePort: port,
+  final engine = LanBeamEngine(
+    EngineConfig(
+      dataDirectory: data,
+      deviceType: DeviceType.desktop,
+      defaultSettings: AppSettings(
+        deviceName: name,
+        downloadDirectory: out,
+        askWhereToSave: false,
+        autoAcceptTrusted: true,
+        conflictPolicy: ConflictPolicy.rename,
+        servicePort: port,
+      ),
     ),
-  ));
+  );
   await engine.start();
-  await engine.updateSettings((s) => s.copyWith(deviceName: name, downloadDirectory: out));
-  print('${engine.localInfo.name} ready on port ${engine.server.port} '
-      '(code ${shortFingerprint(engine.identity.fingerprint)})');
+  await engine.updateSettings(
+    (s) => s.copyWith(deviceName: name, downloadDirectory: out),
+  );
+  print(
+    '${engine.localInfo.name} ready on port ${engine.server.port} '
+    '(code ${shortFingerprint(engine.identity.fingerprint)})',
+  );
 
   void watch(TransferTask t) {
     var last = '';
     t.addListener(() {
-      final line = '${t.direction.name} ${t.title}: ${t.status.name} '
+      final line =
+          '${t.direction.name} ${t.title}: ${t.status.name} '
           '${(t.progress * 100).toStringAsFixed(0)}%';
       if (line != last) {
         last = line;
@@ -97,14 +108,25 @@ Future<void> main(List<String> argv) async {
       await _forever();
     case 'devices':
       for (final d in engine.trustedDevices.all) {
-        print('${d.id}  ${d.name}  ${d.info.os.label}  ${d.lastAddresses.join(',')}:${d.info.port}');
+        print(
+          '${d.id}  ${d.name}  ${d.info.os.label}  ${d.lastAddresses.join(',')}:${d.info.port}',
+        );
       }
       await engine.dispose();
     case 'pair-pin':
-      final target = NetworkService.parseHostPort(args[1], Protocol.defaultServicePort)!;
+      final target = NetworkService.parseHostPort(
+        args[1],
+        Protocol.defaultServicePort,
+      )!;
       final info = await engine.probe(target.$1, target.$2);
-      print('Found ${info.name} (code ${shortFingerprint(info.fingerprint)}); requesting PIN…');
-      final session = await engine.startPinPairing(target.$1, target.$2, info.fingerprint);
+      print(
+        'Found ${info.name} (code ${shortFingerprint(info.fingerprint)}); requesting PIN…',
+      );
+      final session = await engine.startPinPairing(
+        target.$1,
+        target.$2,
+        info.fingerprint,
+      );
       final pin = await _readPin(pinFile);
       final trusted = await session.submit(pin);
       print('Paired with ${trusted.name} (${trusted.id})');
@@ -118,11 +140,16 @@ Future<void> main(List<String> argv) async {
           exit(1);
         },
       );
-      final t = await engine.send(device.id, [for (final path in args.skip(2)) LocalPathSelection(path)]);
+      final t = await engine.send(device.id, [
+        for (final path in args.skip(2)) LocalPathSelection(path),
+      ]);
       watch(t);
       final done = Completer<void>();
       t.addListener(() {
-        if (!t.isRunning && !done.isCompleted && t.status != TransferStatus.paused) done.complete();
+        if (!t.isRunning &&
+            !done.isCompleted &&
+            t.status != TransferStatus.paused)
+          done.complete();
       });
       await done.future;
       print('Result: ${t.status.name}');
