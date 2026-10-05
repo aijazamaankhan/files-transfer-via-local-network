@@ -1,7 +1,9 @@
 package com.lanbeam.lanbeam
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.net.wifi.WifiManager
@@ -12,6 +14,7 @@ import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -39,6 +42,7 @@ class MainActivity : FlutterActivity() {
     private var multicastLock: WifiManager.MulticastLock? = null
     private var pendingPick: MethodChannel.Result? = null
     private var pendingPickKind = 0
+    private var pendingPermission: MethodChannel.Result? = null
 
     private class OpenFile(val pfd: ParcelFileDescriptor, val channel: FileChannel)
     private val openFiles = ConcurrentHashMap<Int, OpenFile>()
@@ -47,6 +51,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val PICK_FILES = 4101
         private const val PICK_TREE = 4102
+        private const val REQUEST_STORAGE = 4103
         private const val MAX_TREE_ENTRIES = 100000
     }
 
@@ -96,6 +101,28 @@ class MainActivity : FlutterActivity() {
             }
             "stopTransferService" -> {
                 stopService(Intent(this, TransferForegroundService::class.java))
+                result.success(true)
+            }
+            "requestLegacyStorage" -> {
+                // Only Android 9 (API 28) and 10 (API 29) need this to write
+                // into Download/; newer versions need no storage permission.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                    Build.VERSION.SDK_INT > Build.VERSION_CODES.Q ||
+                    checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    result.success(true)
+                } else if (pendingPermission != null) {
+                    result.error("busy", "Permission request in progress", null)
+                } else {
+                    pendingPermission = result
+                    requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQUEST_STORAGE)
+                }
+            }
+            "openAppSettings" -> {
+                startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
                 result.success(true)
             }
             "pickFiles" -> startPick(PICK_FILES, result)
@@ -172,6 +199,15 @@ class MainActivity : FlutterActivity() {
         pendingPickKind = kind
         @Suppress("DEPRECATION")
         startActivityForResult(intent, kind)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_STORAGE) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingPermission?.success(granted)
+            pendingPermission = null
+        }
     }
 
     @Deprecated("Deprecated in Java")

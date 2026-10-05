@@ -266,17 +266,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
   bool _busy = false;
   String? _status;
   String? _error;
-  bool _cameraAllowed = true;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_scanner != null) {
-      widget.controller.permissions.ensureCamera().then((ok) {
-        if (mounted) setState(() => _cameraAllowed = ok);
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -324,7 +313,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (_scanner != null && _cameraAllowed)
+          if (_scanner != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: AspectRatio(
@@ -341,9 +330,26 @@ class _QrScanScreenState extends State<QrScanScreen> {
                       errorBuilder: (context, error) => Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'Camera unavailable: ${error.errorCode.name}',
-                            textAlign: TextAlign.center,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                error.errorCode ==
+                                        MobileScannerErrorCode.permissionDenied
+                                    ? 'Allow camera access to scan pairing codes, or paste the code below.'
+                                    : 'Camera unavailable (${error.errorCode.name}). Paste the code below instead.',
+                                textAlign: TextAlign.center,
+                              ),
+                              if (error.errorCode ==
+                                  MobileScannerErrorCode.permissionDenied)
+                                TextButton(
+                                  onPressed: widget
+                                      .controller
+                                      .permissions
+                                      .openSettings,
+                                  child: const Text('Open settings'),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -355,16 +361,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
                       ),
                   ],
                 ),
-              ),
-            )
-          else if (_scanner != null)
-            EmptyState(
-              icon: Icons.no_photography_outlined,
-              title: 'Camera permission needed',
-              message: 'Allow camera access to scan pairing codes, or paste the code below.',
-              action: OutlinedButton(
-                onPressed: widget.controller.permissions.openSettings,
-                child: const Text('Open settings'),
               ),
             ),
           const SizedBox(height: 16),

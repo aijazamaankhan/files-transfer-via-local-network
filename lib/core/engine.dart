@@ -449,8 +449,9 @@ class LanBeamEngine extends Notifier {
       return live;
     }
     final data = record.resumeData;
-    if (data == null)
+    if (data == null) {
       throw const LanBeamException(FailureKind.fileMissing, 'no resume data');
+    }
     final manifest = TransferManifest.fromJson(
       (data['manifest'] as Map).cast(),
     );

@@ -56,8 +56,9 @@ abstract final class NetworkService {
           n.startsWith('wi-fi') ||
           n.startsWith('en') ||
           n.startsWith('eth') ||
-          n.startsWith('wlan'))
+          n.startsWith('wlan')) {
         s -= 10;
+      }
       return s;
     }
 

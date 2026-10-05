@@ -129,8 +129,9 @@ class OutgoingTransfer extends TransferTask {
     if (status != TransferStatus.failed) return Future.value();
     error = null;
     for (final f in files.values) {
-      if (f.state == FileTransferState.failed)
+      if (f.state == FileTransferState.failed) {
         f.state = FileTransferState.queued;
+      }
     }
     _checksumRetries.clear();
     return start();
@@ -291,8 +292,9 @@ class OutgoingTransfer extends TransferTask {
         if (signal.isCompleted || !pausedRemotely) break;
         try {
           final s = await client.status(id);
-          if (s['paused'] != true && s['state'] != 'paused')
+          if (s['paused'] != true && s['state'] != 'paused') {
             pausedRemotely = false;
+          }
           if (s['state'] == 'cancelled') throw const _CancelledSignal();
         } on _CancelledSignal {
           rethrow;
@@ -317,8 +319,9 @@ class OutgoingTransfer extends TransferTask {
   }
 
   void _applyOffsets(Object? raw) {
-    if (raw is! Map)
+    if (raw is! Map) {
       throw const LanBeamException(FailureKind.protocol, 'files');
+    }
     for (final f in files.values) {
       final entry = raw[f.file.id];
       if (entry is! Map) continue;
@@ -637,8 +640,9 @@ class OutgoingTransfer extends TransferTask {
     final blocks = offset ~/ Protocol.blockSize;
     if (blocks == 0) return const [];
     final cached = _blockCache[fileId];
-    if (cached != null && cached.length >= blocks)
+    if (cached != null && cached.length >= blocks) {
       return cached.sublist(0, blocks);
+    }
     // Re-hash locally (fast compared to the network); happens only when
     // resuming after an app restart.
     final hasher = checksums.createHasher();

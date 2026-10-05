@@ -44,8 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadAddresses() async {
     final a = await NetworkService.localAddresses();
-    if (mounted && a.join() != _addresses.join())
+    if (mounted && a.join() != _addresses.join()) {
       setState(() => _addresses = a);
+    }
   }
 
   @override

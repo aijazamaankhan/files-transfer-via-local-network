@@ -524,8 +524,9 @@ class TransferReceiver {
     final fp = t.files[fileId];
     final planned = t.plan?.files[fileId];
     if (fp == null || planned == null) throw ApiError(ErrorCodes.notFound);
-    if (fp.state == FileTransferState.done)
+    if (fp.state == FileTransferState.done) {
       return p.basename(fp.savedPath ?? fp.file.name);
+    }
     final partial = t.partials[fileId];
     if (partial == null) throw ApiError(ErrorCodes.notFound);
     if (!partial.isComplete) {

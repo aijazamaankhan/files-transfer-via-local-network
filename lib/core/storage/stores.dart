@@ -120,8 +120,9 @@ class TransferHistoryService extends Notifier {
   Future<void> record(HistoryRecord r) async {
     _records.removeWhere((e) => e.transferId == r.transferId);
     _records.insert(0, r);
-    if (_records.length > maxRecords)
+    if (_records.length > maxRecords) {
       _records.removeRange(maxRecords, _records.length);
+    }
     notifyListeners();
     await _save();
   }

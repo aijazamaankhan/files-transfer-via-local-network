@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../core/platform_interfaces.dart';
 import '../core/transfer/file_scanner.dart';
@@ -137,27 +136,27 @@ class LocalNotificationService implements NotificationService {
 }
 
 /// Runtime permissions. Only what is needed, only when needed.
+///
+/// The camera permission is requested by the QR scanner plugin itself when
+/// it starts; notifications by [LocalNotificationService]. The only other
+/// runtime permission is storage on Android 9–10, handled natively.
 class PermissionService {
   const PermissionService();
-
-  /// Camera, requested right before scanning a QR code.
-  Future<bool> ensureCamera() async {
-    if (!isMobile) return true;
-    final status = await Permission.camera.request();
-    return status.isGranted || status.isLimited;
-  }
 
   /// Storage write access for saving into Download/ on Android 9–10 only.
   Future<bool> ensureLegacyStorage() async {
     if (!Platform.isAndroid) return true;
-    final info = await AndroidBridge.instance.deviceInfo();
-    final sdk = (info['sdkInt'] as int?) ?? 33;
-    if (sdk > 29) return true;
-    final status = await Permission.storage.request();
-    return status.isGranted;
+    try {
+      return await AndroidBridge.instance.requestLegacyStorage();
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<void> openSettings() => openAppSettings();
+  /// Opens this app's page in the system settings (mobile).
+  Future<void> openSettings() async {
+    if (Platform.isAndroid) await AndroidBridge.instance.openAppSettings();
+  }
 }
 
 /// Launch-at-login for desktop platforms.
