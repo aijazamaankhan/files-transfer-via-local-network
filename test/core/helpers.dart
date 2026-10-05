@@ -29,7 +29,8 @@ class TestPeer {
     AppSettings Function(AppSettings)? settings,
     int? port,
   }) async {
-    final root = reuseRoot ?? await Directory.systemTemp.createTemp('lanbeam_$name');
+    final root =
+        reuseRoot ?? await Directory.systemTemp.createTemp('lanbeam_$name');
     final defaults = AppSettings(
       deviceName: name,
       downloadDirectory: p.join(root.path, 'downloads'),
@@ -128,9 +129,12 @@ Future<void> waitForStatus(
 
   task.addListener(listener);
   try {
-    await c.future.timeout(timeout, onTimeout: () {
-      throw TimeoutException('status was ${task.status} (${task.error})');
-    });
+    await c.future.timeout(
+      timeout,
+      onTimeout: () {
+        throw TimeoutException('status was ${task.status} (${task.error})');
+      },
+    );
   } finally {
     task.removeListener(listener);
   }

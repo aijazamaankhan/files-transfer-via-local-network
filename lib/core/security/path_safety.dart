@@ -137,7 +137,9 @@ abstract final class PathSafety {
   /// "photo.jpg" → "photo (1).jpg"; keeps dotfiles intact.
   static String numberedName(String name, int n) {
     final ext = p.extension(name);
-    final stem = (ext.isEmpty || ext == name) ? name : name.substring(0, name.length - ext.length);
+    final stem = (ext.isEmpty || ext == name)
+        ? name
+        : name.substring(0, name.length - ext.length);
     final e = ext == name ? '' : ext;
     return '$stem ($n)$e';
   }

@@ -58,7 +58,8 @@ void main() {
         name: "John's PC",
         addresses: ['192.168.1.20', '10.0.0.5'],
         port: 45872,
-        fingerprint: 'ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12',
+        fingerprint:
+            'ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12',
         token: 'tokentokentokentoken',
       );
       final parsed = QrPairingPayload.parse(payload.toUri());
@@ -66,7 +67,10 @@ void main() {
       expect(parsed.addresses, ['192.168.1.20', '10.0.0.5']);
       expect(parsed.port, 45872);
       expect(parsed.token, payload.token);
-      expect(() => QrPairingPayload.parse('https://evil.example'), throwsFormatException);
+      expect(
+        () => QrPairingPayload.parse('https://evil.example'),
+        throwsFormatException,
+      );
     });
 
     test('valid token + approval pairs and stores a secret', () async {
@@ -75,7 +79,12 @@ void main() {
         if (p is PairingApprovalPrompt) p.respond(true);
       });
       final t = s.createQrToken(const Duration(minutes: 5));
-      final trusted = await s.handlePairRequest(method: 'qr', device: device('x'), remote: '1.2.3.4', token: t.token);
+      final trusted = await s.handlePairRequest(
+        method: 'qr',
+        device: device('x'),
+        remote: '1.2.3.4',
+        token: t.token,
+      );
       expect(trusted.secret.length, 32);
       expect(store.isTrusted('x'), isTrue);
     });
@@ -83,9 +92,19 @@ void main() {
     test('token is single use', () async {
       final s = service()..requireApprovalForQr = false;
       final t = s.createQrToken(const Duration(minutes: 5));
-      await s.handlePairRequest(method: 'qr', device: device('x'), remote: 'r', token: t.token);
+      await s.handlePairRequest(
+        method: 'qr',
+        device: device('x'),
+        remote: 'r',
+        token: t.token,
+      );
       expect(
-        () => s.handlePairRequest(method: 'qr', device: device('y'), remote: 'r', token: t.token),
+        () => s.handlePairRequest(
+          method: 'qr',
+          device: device('y'),
+          remote: 'r',
+          token: t.token,
+        ),
         throwsA(isA<PairingFailure>()),
       );
     });
@@ -95,8 +114,19 @@ void main() {
       final t = s.createQrToken(const Duration(minutes: 5));
       now = now.add(const Duration(minutes: 6));
       await expectLater(
-        s.handlePairRequest(method: 'qr', device: device('x'), remote: 'r', token: t.token),
-        throwsA(isA<PairingFailure>().having((e) => e.code, 'code', ErrorCodes.unauthorized)),
+        s.handlePairRequest(
+          method: 'qr',
+          device: device('x'),
+          remote: 'r',
+          token: t.token,
+        ),
+        throwsA(
+          isA<PairingFailure>().having(
+            (e) => e.code,
+            'code',
+            ErrorCodes.unauthorized,
+          ),
+        ),
       );
       expect(store.isTrusted('x'), isFalse);
     });
@@ -108,8 +138,19 @@ void main() {
       });
       final t = s.createQrToken(const Duration(minutes: 5));
       await expectLater(
-        s.handlePairRequest(method: 'qr', device: device('x'), remote: 'r', token: t.token),
-        throwsA(isA<PairingFailure>().having((e) => e.code, 'code', ErrorCodes.rejected)),
+        s.handlePairRequest(
+          method: 'qr',
+          device: device('x'),
+          remote: 'r',
+          token: t.token,
+        ),
+        throwsA(
+          isA<PairingFailure>().having(
+            (e) => e.code,
+            'code',
+            ErrorCodes.rejected,
+          ),
+        ),
       );
       expect(store.isTrusted('x'), isFalse);
     });
@@ -119,13 +160,29 @@ void main() {
       s.createQrToken(const Duration(minutes: 5));
       for (var i = 0; i < 8; i++) {
         await expectLater(
-          s.handlePairRequest(method: 'qr', device: device('x'), remote: 'r', token: 'wrong-token-$i'),
+          s.handlePairRequest(
+            method: 'qr',
+            device: device('x'),
+            remote: 'r',
+            token: 'wrong-token-$i',
+          ),
           throwsA(isA<PairingFailure>()),
         );
       }
       await expectLater(
-        s.handlePairRequest(method: 'qr', device: device('x'), remote: 'r', token: 'whatever'),
-        throwsA(isA<PairingFailure>().having((e) => e.code, 'code', ErrorCodes.rateLimited)),
+        s.handlePairRequest(
+          method: 'qr',
+          device: device('x'),
+          remote: 'r',
+          token: 'whatever',
+        ),
+        throwsA(
+          isA<PairingFailure>().having(
+            (e) => e.code,
+            'code',
+            ErrorCodes.rateLimited,
+          ),
+        ),
       );
     });
   });
@@ -133,31 +190,63 @@ void main() {
   group('PIN pairing', () {
     test('correct PIN with matching fingerprints pairs', () async {
       String? pin;
-      final s = PairingService(localFingerprint: 'b' * 64, trustedDevices: store, onPaired: (_) {});
+      final s = PairingService(
+        localFingerprint: 'b' * 64,
+        trustedDevices: store,
+        onPaired: (_) {},
+      );
       s.prompts.listen((p) {
         if (p is PairingPinPrompt) pin = p.pin;
       });
       final dev = device('phone', fp: 'c' * 64);
       final r = s.startPinSession(dev, 'r');
       await Future<void>.delayed(Duration.zero);
-      final proof = AuthProofs.pin(pin!, r.nonce, dev.id, dev.fingerprint, 'b' * 64);
-      await s.handlePairRequest(method: 'pin', device: dev, remote: 'r', nonce: r.nonce, proof: proof);
+      final proof = AuthProofs.pin(
+        pin!,
+        r.nonce,
+        dev.id,
+        dev.fingerprint,
+        'b' * 64,
+      );
+      await s.handlePairRequest(
+        method: 'pin',
+        device: dev,
+        remote: 'r',
+        nonce: r.nonce,
+        proof: proof,
+      );
       expect(store.isTrusted('phone'), isTrue);
       s.dispose();
     });
 
     test('proof computed against a MITM fingerprint fails', () async {
       String? pin;
-      final s = PairingService(localFingerprint: 'b' * 64, trustedDevices: store, onPaired: (_) {});
+      final s = PairingService(
+        localFingerprint: 'b' * 64,
+        trustedDevices: store,
+        onPaired: (_) {},
+      );
       s.prompts.listen((p) {
         if (p is PairingPinPrompt) pin = p.pin;
       });
       final dev = device('phone', fp: 'c' * 64);
       final r = s.startPinSession(dev, 'r');
       await Future<void>.delayed(Duration.zero);
-      final proof = AuthProofs.pin(pin!, r.nonce, dev.id, dev.fingerprint, 'e' * 64);
+      final proof = AuthProofs.pin(
+        pin!,
+        r.nonce,
+        dev.id,
+        dev.fingerprint,
+        'e' * 64,
+      );
       await expectLater(
-        s.handlePairRequest(method: 'pin', device: dev, remote: 'r', nonce: r.nonce, proof: proof),
+        s.handlePairRequest(
+          method: 'pin',
+          device: dev,
+          remote: 'r',
+          nonce: r.nonce,
+          proof: proof,
+        ),
         throwsA(isA<PairingFailure>()),
       );
       s.dispose();
@@ -165,7 +254,11 @@ void main() {
 
     test('session is destroyed after too many wrong PINs', () async {
       String? pin;
-      final s = PairingService(localFingerprint: 'b' * 64, trustedDevices: store, onPaired: (_) {});
+      final s = PairingService(
+        localFingerprint: 'b' * 64,
+        trustedDevices: store,
+        onPaired: (_) {},
+      );
       s.prompts.listen((p) {
         if (p is PairingPinPrompt) pin = p.pin;
       });
@@ -173,26 +266,58 @@ void main() {
       final r = s.startPinSession(dev, 'r');
       await Future<void>.delayed(Duration.zero);
       for (var i = 0; i < Protocol.pinMaxAttempts; i++) {
-        final wrong = ((int.parse(pin!) + 1 + i) % 1000000).toString().padLeft(6, '0');
+        final wrong = ((int.parse(pin!) + 1 + i) % 1000000).toString().padLeft(
+          6,
+          '0',
+        );
         await expectLater(
-          s.handlePairRequest(method: 'pin', device: dev, remote: 'r$i', nonce: r.nonce,
-              proof: AuthProofs.pin(wrong, r.nonce, dev.id, dev.fingerprint, 'b' * 64)),
+          s.handlePairRequest(
+            method: 'pin',
+            device: dev,
+            remote: 'r$i',
+            nonce: r.nonce,
+            proof: AuthProofs.pin(
+              wrong,
+              r.nonce,
+              dev.id,
+              dev.fingerprint,
+              'b' * 64,
+            ),
+          ),
           throwsA(isA<PairingFailure>()),
         );
       }
       // Even the right PIN no longer works.
       await expectLater(
-        s.handlePairRequest(method: 'pin', device: dev, remote: 'rx', nonce: r.nonce,
-            proof: AuthProofs.pin(pin!, r.nonce, dev.id, dev.fingerprint, 'b' * 64)),
+        s.handlePairRequest(
+          method: 'pin',
+          device: dev,
+          remote: 'rx',
+          nonce: r.nonce,
+          proof: AuthProofs.pin(
+            pin!,
+            r.nonce,
+            dev.id,
+            dev.fingerprint,
+            'b' * 64,
+          ),
+        ),
         throwsA(isA<PairingFailure>()),
       );
       s.dispose();
     });
 
     test('another device cannot hijack an active PIN session', () {
-      final s = PairingService(localFingerprint: 'b' * 64, trustedDevices: store, onPaired: (_) {});
+      final s = PairingService(
+        localFingerprint: 'b' * 64,
+        trustedDevices: store,
+        onPaired: (_) {},
+      );
       s.startPinSession(device('one'), 'r1');
-      expect(() => s.startPinSession(device('two'), 'r2'), throwsA(isA<PairingFailure>()));
+      expect(
+        () => s.startPinSession(device('two'), 'r2'),
+        throwsA(isA<PairingFailure>()),
+      );
       s.dispose();
     });
   });
@@ -202,26 +327,47 @@ void main() {
     final secret = randomBytes(32);
 
     setUp(() async {
-      await store.put(TrustedDevice(info: device('phone'), secret: secret, pairedAt: now));
-      auth = AuthenticationService(localDeviceId: 'pc', trustedDevices: store, clock: () => now);
+      await store.put(
+        TrustedDevice(info: device('phone'), secret: secret, pairedAt: now),
+      );
+      auth = AuthenticationService(
+        localDeviceId: 'pc',
+        trustedDevices: store,
+        clock: () => now,
+      );
     });
 
     test('valid proof yields a token and a verifiable server proof', () {
       final nonce = auth.issueChallenge('phone', 'r');
       final grant = auth.createSession(
-        deviceId: 'phone', nonce: nonce, remote: 'r',
+        deviceId: 'phone',
+        nonce: nonce,
+        remote: 'r',
         proof: AuthProofs.client(secret, nonce, 'phone', 'pc'),
       );
       expect(auth.validate(grant.token), 'phone');
-      expect(grant.serverProof, AuthProofs.server(secret, nonce, 'phone', 'pc'));
+      expect(
+        grant.serverProof,
+        AuthProofs.server(secret, nonce, 'phone', 'pc'),
+      );
     });
 
     test('nonce cannot be replayed', () {
       final nonce = auth.issueChallenge('phone', 'r');
       final proof = AuthProofs.client(secret, nonce, 'phone', 'pc');
-      auth.createSession(deviceId: 'phone', nonce: nonce, proof: proof, remote: 'r');
+      auth.createSession(
+        deviceId: 'phone',
+        nonce: nonce,
+        proof: proof,
+        remote: 'r',
+      );
       expect(
-        () => auth.createSession(deviceId: 'phone', nonce: nonce, proof: proof, remote: 'r'),
+        () => auth.createSession(
+          deviceId: 'phone',
+          nonce: nonce,
+          proof: proof,
+          remote: 'r',
+        ),
         throwsA(isA<AuthFailure>()),
       );
     });
@@ -229,29 +375,45 @@ void main() {
     test('wrong secret, unknown device and expired nonce are rejected', () {
       var nonce = auth.issueChallenge('phone', 'r');
       expect(
-        () => auth.createSession(deviceId: 'phone', nonce: nonce, remote: 'r',
-            proof: AuthProofs.client(randomBytes(32), nonce, 'phone', 'pc')),
+        () => auth.createSession(
+          deviceId: 'phone',
+          nonce: nonce,
+          remote: 'r',
+          proof: AuthProofs.client(randomBytes(32), nonce, 'phone', 'pc'),
+        ),
         throwsA(isA<AuthFailure>()),
       );
       nonce = auth.issueChallenge('stranger', 'r');
       expect(
-        () => auth.createSession(deviceId: 'stranger', nonce: nonce, remote: 'r',
-            proof: AuthProofs.client(secret, nonce, 'stranger', 'pc')),
+        () => auth.createSession(
+          deviceId: 'stranger',
+          nonce: nonce,
+          remote: 'r',
+          proof: AuthProofs.client(secret, nonce, 'stranger', 'pc'),
+        ),
         throwsA(isA<AuthFailure>()),
       );
       nonce = auth.issueChallenge('phone', 'r');
       now = now.add(const Duration(minutes: 1));
       expect(
-        () => auth.createSession(deviceId: 'phone', nonce: nonce, remote: 'r',
-            proof: AuthProofs.client(secret, nonce, 'phone', 'pc')),
+        () => auth.createSession(
+          deviceId: 'phone',
+          nonce: nonce,
+          remote: 'r',
+          proof: AuthProofs.client(secret, nonce, 'phone', 'pc'),
+        ),
         throwsA(isA<AuthFailure>()),
       );
     });
 
     test('tokens expire and die with the pairing', () async {
       final nonce = auth.issueChallenge('phone', 'r');
-      final grant = auth.createSession(deviceId: 'phone', nonce: nonce, remote: 'r',
-          proof: AuthProofs.client(secret, nonce, 'phone', 'pc'));
+      final grant = auth.createSession(
+        deviceId: 'phone',
+        nonce: nonce,
+        remote: 'r',
+        proof: AuthProofs.client(secret, nonce, 'phone', 'pc'),
+      );
       expect(auth.validate(grant.token), 'phone');
       await store.remove('phone');
       expect(auth.validate(grant.token), isNull);
@@ -259,8 +421,12 @@ void main() {
 
     test('token expiry', () {
       final nonce = auth.issueChallenge('phone', 'r');
-      final grant = auth.createSession(deviceId: 'phone', nonce: nonce, remote: 'r',
-          proof: AuthProofs.client(secret, nonce, 'phone', 'pc'));
+      final grant = auth.createSession(
+        deviceId: 'phone',
+        nonce: nonce,
+        remote: 'r',
+        proof: AuthProofs.client(secret, nonce, 'phone', 'pc'),
+      );
       now = now.add(Protocol.sessionTokenTtl + const Duration(seconds: 1));
       expect(auth.validate(grant.token), isNull);
     });

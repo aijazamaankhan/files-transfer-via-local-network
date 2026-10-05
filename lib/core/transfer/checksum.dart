@@ -9,7 +9,11 @@ import '../protocol/protocol.dart';
 
 /// Computes the LanBeam file digest from per-block SHA-256 hashes
 /// (PROTOCOL.md §3).
-String fileDigest(int size, List<Digest> blocks, {int blockSize = Protocol.blockSize}) {
+String fileDigest(
+  int size,
+  List<Digest> blocks, {
+  int blockSize = Protocol.blockSize,
+}) {
   final out = AccumulatorSink<Digest>();
   final input = sha256.startChunkedConversion(out)
     ..add(utf8.encode('lanbeam-blocks-v1:$size:$blockSize:'));
@@ -122,7 +126,12 @@ class _InlineBlockHasher implements BlockHasher {
 /// never competes with the UI isolate. Data crosses as
 /// [TransferableTypedData] (a single copy, no serialization).
 class IsolateChecksumService implements ChecksumService {
-  IsolateChecksumService._(this._isolate, this._toWorker, this._port, Stream<dynamic> messages) {
+  IsolateChecksumService._(
+    this._isolate,
+    this._toWorker,
+    this._port,
+    Stream<dynamic> messages,
+  ) {
     _subscription = messages.listen(_onMessage);
   }
 
@@ -141,7 +150,8 @@ class IsolateChecksumService implements ChecksumService {
       port.sendPort,
       debugName: 'lanbeam-checksum',
     );
-    final toWorker = await messages.firstWhere((m) => m is SendPort) as SendPort;
+    final toWorker =
+        await messages.firstWhere((m) => m is SendPort) as SendPort;
     return IsolateChecksumService._(isolate, toWorker, port, messages);
   }
 
@@ -206,7 +216,9 @@ class IsolateChecksumService implements ChecksumService {
         case 2: // close
           final h = hashers.remove(id);
           if (h != null) {
-            h.close(includePartial: list[2] as bool).then((_) => toMain.send([id, 1, 0, null]));
+            h
+                .close(includePartial: list[2] as bool)
+                .then((_) => toMain.send([id, 1, 0, null]));
           } else {
             toMain.send([id, 1, 0, null]);
           }
@@ -255,7 +267,11 @@ class _IsolateBlockHasher implements BlockHasher {
   Future<void> add(Uint8List data) {
     if (data.isEmpty) return Future.value();
     _outstanding += data.length;
-    _service._toWorker.send([_id, 1, TransferableTypedData.fromList([data])]);
+    _service._toWorker.send([
+      _id,
+      1,
+      TransferableTypedData.fromList([data]),
+    ]);
     if (_outstanding <= _maxOutstanding) return Future.value();
     return (_drained ??= Completer<void>()).future;
   }

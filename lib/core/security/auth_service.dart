@@ -6,14 +6,30 @@ import 'crypto_utils.dart';
 
 /// Proof strings for the challenge/response handshake (see PROTOCOL.md §2.3).
 abstract final class AuthProofs {
-  static String client(List<int> secret, String nonce, String clientId, String serverId) =>
-      hmacHex(secret, 'lanbeam-auth-v1|client|$nonce|$clientId|$serverId');
+  static String client(
+    List<int> secret,
+    String nonce,
+    String clientId,
+    String serverId,
+  ) => hmacHex(secret, 'lanbeam-auth-v1|client|$nonce|$clientId|$serverId');
 
-  static String server(List<int> secret, String nonce, String clientId, String serverId) =>
-      hmacHex(secret, 'lanbeam-auth-v1|server|$nonce|$clientId|$serverId');
+  static String server(
+    List<int> secret,
+    String nonce,
+    String clientId,
+    String serverId,
+  ) => hmacHex(secret, 'lanbeam-auth-v1|server|$nonce|$clientId|$serverId');
 
-  static String pin(String pin, String nonce, String clientId, String clientFp, String serverFp) =>
-      hmacHex(utf8.encode(pin), 'lanbeam-pin-v1|$nonce|$clientId|$clientFp|$serverFp');
+  static String pin(
+    String pin,
+    String nonce,
+    String clientId,
+    String clientFp,
+    String serverFp,
+  ) => hmacHex(
+    utf8.encode(pin),
+    'lanbeam-pin-v1|$nonce|$clientId|$clientFp|$serverFp',
+  );
 }
 
 class AuthFailure implements Exception {
@@ -127,7 +143,12 @@ class AuthenticationService {
       rateLimiter.recordFailure(remote);
       throw const AuthFailure(ErrorCodes.unauthorized);
     }
-    final expected = AuthProofs.client(device.secret, nonce, deviceId, localDeviceId);
+    final expected = AuthProofs.client(
+      device.secret,
+      nonce,
+      deviceId,
+      localDeviceId,
+    );
     if (!constantTimeEquals(expected, proof)) {
       rateLimiter.recordFailure(remote);
       throw const AuthFailure(ErrorCodes.unauthorized);

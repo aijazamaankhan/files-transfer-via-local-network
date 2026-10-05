@@ -17,7 +17,11 @@ class NoopNotificationService implements NotificationService {
   @override
   Future<void> init() async {}
   @override
-  Future<void> show({required int id, required String title, required String body}) async {}
+  Future<void> show({
+    required int id,
+    required String title,
+    required String body,
+  }) async {}
 }
 
 enum BluetoothAvailability { unsupported, unavailable, off, on }

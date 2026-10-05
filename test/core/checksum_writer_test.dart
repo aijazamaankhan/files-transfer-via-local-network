@@ -12,7 +12,11 @@ import 'package:path/path.dart' as p;
 
 import 'helpers.dart';
 
-Future<String> digestOfFile(String path, ChecksumService svc, {int blockSize = Protocol.blockSize}) async {
+Future<String> digestOfFile(
+  String path,
+  ChecksumService svc, {
+  int blockSize = Protocol.blockSize,
+}) async {
   final h = svc.createHasher(blockSize: blockSize);
   await for (final c in File(path).openRead()) {
     await h.add(Uint8List.fromList(c));
@@ -26,18 +30,21 @@ void main() {
   setUp(() async => tmp = await Directory.systemTemp.createTemp('cw'));
   tearDown(() => tmp.delete(recursive: true));
 
-  test('inline and isolate hashers agree, including block boundaries', () async {
-    final iso = await IsolateChecksumService.spawn();
-    final inline = InlineChecksumService();
-    for (final size in [0, 1, 1000, 4096, 4097, 3 * 4096]) {
-      final path = p.join(tmp.path, 'f$size');
-      await writeRandomFile(path, size, seed: size);
-      final a = await digestOfFile(path, inline, blockSize: 4096);
-      final b = await digestOfFile(path, iso, blockSize: 4096);
-      expect(a, b, reason: 'size $size');
-    }
-    await iso.dispose();
-  });
+  test(
+    'inline and isolate hashers agree, including block boundaries',
+    () async {
+      final iso = await IsolateChecksumService.spawn();
+      final inline = InlineChecksumService();
+      for (final size in [0, 1, 1000, 4096, 4097, 3 * 4096]) {
+        final path = p.join(tmp.path, 'f$size');
+        await writeRandomFile(path, size, seed: size);
+        final a = await digestOfFile(path, inline, blockSize: 4096);
+        final b = await digestOfFile(path, iso, blockSize: 4096);
+        expect(a, b, reason: 'size $size');
+      }
+      await iso.dispose();
+    },
+  );
 
   test('digest changes when a single byte changes', () async {
     final path = p.join(tmp.path, 'x');
@@ -51,41 +58,59 @@ void main() {
     expect(await digestOfFile(path, svc, blockSize: 4096), isNot(before));
   });
 
-  test('PartialFile resumes at the last whole block after interruption', () async {
-    const block = 4096;
-    final src = p.join(tmp.path, 'src');
-    await writeRandomFile(src, block * 5 + 123);
-    final size = await File(src).length();
-    final svc = InlineChecksumService();
-    final staging = p.join(tmp.path, 'staging');
+  test(
+    'PartialFile resumes at the last whole block after interruption',
+    () async {
+      const block = 4096;
+      final src = p.join(tmp.path, 'src');
+      await writeRandomFile(src, block * 5 + 123);
+      final size = await File(src).length();
+      final svc = InlineChecksumService();
+      final staging = p.join(tmp.path, 'staging');
 
-    var partial = PartialFile(stagingDir: staging, fileId: 'f', size: size, checksums: svc, blockSize: block);
-    expect(await partial.prepare(), 0);
+      var partial = PartialFile(
+        stagingDir: staging,
+        fileId: 'f',
+        size: size,
+        checksums: svc,
+        blockSize: block,
+      );
+      expect(await partial.prepare(), 0);
 
-    // Deliver 2.5 blocks then fail like a dropped connection.
-    final controller = StreamController<List<int>>();
-    final bytes = await File(src).readAsBytes();
-    final writing = partial.write(controller.stream, 0);
-    controller.add(bytes.sublist(0, (block * 2.5).toInt()));
-    controller.addError(const SocketException('Connection reset'));
-    await expectLater(writing, throwsA(isA<SocketException>()));
-    expect(partial.committed, block * 2);
+      // Deliver 2.5 blocks then fail like a dropped connection.
+      final controller = StreamController<List<int>>();
+      final bytes = await File(src).readAsBytes();
+      final writing = partial.write(controller.stream, 0);
+      controller.add(bytes.sublist(0, (block * 2.5).toInt()));
+      controller.addError(const SocketException('Connection reset'));
+      await expectLater(writing, throwsA(isA<SocketException>()));
+      expect(partial.committed, block * 2);
 
-    // A new instance (as after an app restart) sees the same offset.
-    partial = PartialFile(stagingDir: staging, fileId: 'f', size: size, checksums: svc, blockSize: block);
-    expect(await partial.prepare(), block * 2);
-    await expectLater(
-      partial.write(Stream.value(bytes.sublist(block)), block),
-      throwsA(isA<OffsetMismatch>()),
-    );
-    await partial.write(Stream.value(bytes.sublist(block * 2)), block * 2);
-    expect(partial.isComplete, isTrue);
-    expect(await partial.digest(), await digestOfFile(src, svc, blockSize: block));
-    expect(
-      sha256.convert(await File(partial.partPath).readAsBytes()),
-      sha256.convert(bytes),
-    );
-  });
+      // A new instance (as after an app restart) sees the same offset.
+      partial = PartialFile(
+        stagingDir: staging,
+        fileId: 'f',
+        size: size,
+        checksums: svc,
+        blockSize: block,
+      );
+      expect(await partial.prepare(), block * 2);
+      await expectLater(
+        partial.write(Stream.value(bytes.sublist(block)), block),
+        throwsA(isA<OffsetMismatch>()),
+      );
+      await partial.write(Stream.value(bytes.sublist(block * 2)), block * 2);
+      expect(partial.isComplete, isTrue);
+      expect(
+        await partial.digest(),
+        await digestOfFile(src, svc, blockSize: block),
+      );
+      expect(
+        sha256.convert(await File(partial.partPath).readAsBytes()),
+        sha256.convert(bytes),
+      );
+    },
+  );
 
   test('PartialFile rejects bodies larger than the declared size', () async {
     final partial = PartialFile(

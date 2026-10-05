@@ -149,7 +149,9 @@ class TransferReceiver {
       if (entity is! File || !entity.path.endsWith('.json')) continue;
       try {
         final json = jsonDecode(await entity.readAsString()) as Map;
-        final manifest = TransferManifest.fromJson((json['manifest'] as Map).cast());
+        final manifest = TransferManifest.fromJson(
+          (json['manifest'] as Map).cast(),
+        );
         final peer = DeviceInfo.fromJson((json['peer'] as Map).cast());
         final t = IncomingTransfer(
           manifest: manifest,
@@ -218,7 +220,10 @@ class TransferReceiver {
 
   void checkAccess(String deviceId, String id) => _get(deviceId, id);
 
-  Future<OfferResult> handleOffer(String deviceId, Map<String, Object?> body) async {
+  Future<OfferResult> handleOffer(
+    String deviceId,
+    Map<String, Object?> body,
+  ) async {
     final manifest = TransferManifest.fromJson(body);
     final trusted = trustedDevices.get(deviceId);
     if (trusted == null) throw ApiError(ErrorCodes.forbidden);
@@ -238,7 +243,10 @@ class TransferReceiver {
           return OfferResult(200, _decisionBody(existing));
         default:
           if (!existing.isAccepted) {
-            return OfferResult(202, {'transferId': existing.id, 'state': 'pending'});
+            return OfferResult(202, {
+              'transferId': existing.id,
+              'state': 'pending',
+            });
           }
           // Resume of a known transfer: no new approval needed.
           if (!existing.localPaused) existing.setStatus(TransferStatus.active);
@@ -266,7 +274,8 @@ class TransferReceiver {
       plan = null; // destination unavailable: the user must choose
     }
 
-    final autoAccept = (trusted.autoAccept ?? s.autoAcceptTrusted) &&
+    final autoAccept =
+        (trusted.autoAccept ?? s.autoAcceptTrusted) &&
         (s.useDestinationRules || !s.askWhereToSave) &&
         plan != null &&
         (plan.conflicts.isEmpty || s.conflictPolicy != ConflictPolicy.ask);
@@ -295,8 +304,15 @@ class TransferReceiver {
     return true;
   }
 
-  Future<DestinationPlan> _buildPlan(IncomingTransfer t, {String? overrideRoot}) async {
-    final plan = destinations.plan(t.manifest, settings(), overrideRoot: overrideRoot);
+  Future<DestinationPlan> _buildPlan(
+    IncomingTransfer t, {
+    String? overrideRoot,
+  }) async {
+    final plan = destinations.plan(
+      t.manifest,
+      settings(),
+      overrideRoot: overrideRoot,
+    );
     await destinations.prepare(plan);
     final policy = settings().conflictPolicy;
     if (policy != ConflictPolicy.ask) {
@@ -385,7 +401,11 @@ class TransferReceiver {
       },
   };
 
-  Map<String, Object?> statusOf(String deviceId, String id, {bool allowFinished = false}) {
+  Map<String, Object?> statusOf(
+    String deviceId,
+    String id, {
+    bool allowFinished = false,
+  }) {
     final t = _get(deviceId, id);
     return {
       'transferId': t.id,
@@ -443,29 +463,49 @@ class TransferReceiver {
             ? 'paused'
             : null,
       );
-      t.setFileState(fileId, FileTransferState.verifying, transferred: committed);
+      t.setFileState(
+        fileId,
+        FileTransferState.verifying,
+        transferred: committed,
+      );
       return committed;
     } on OffsetMismatch catch (e) {
       t.setFileState(fileId, FileTransferState.queued, transferred: e.expected);
       throw ApiError(ErrorCodes.offsetMismatch, null, {'offset': e.expected});
     } on UploadInterrupted catch (e) {
-      t.setFileState(fileId, FileTransferState.queued, transferred: partial.committed);
+      t.setFileState(
+        fileId,
+        FileTransferState.queued,
+        transferred: partial.committed,
+      );
       if (e.reason == 'cancelled') throw ApiError(ErrorCodes.gone);
       if (e.reason == 'paused') throw ApiError(ErrorCodes.paused);
       throw ApiError(ErrorCodes.badRequest, e.reason);
     } on FileSystemException catch (e) {
       final err = classifyError(e);
-      t.setFileState(fileId, FileTransferState.failed,
-          error: err.userMessage, transferred: partial.committed);
+      t.setFileState(
+        fileId,
+        FileTransferState.failed,
+        error: err.userMessage,
+        transferred: partial.committed,
+      );
       if (err.kind == FailureKind.diskFull) {
         t.setStatus(TransferStatus.failed, error: err);
-        _broadcast(t, {'type': 'error', 'error': ErrorCodes.diskFull, 'message': err.userMessage});
+        _broadcast(t, {
+          'type': 'error',
+          'error': ErrorCodes.diskFull,
+          'message': err.userMessage,
+        });
         throw ApiError(ErrorCodes.diskFull, err.userMessage);
       }
       throw err;
     } catch (e) {
       // Connection dropped mid-upload; committed data is kept for resume.
-      t.setFileState(fileId, FileTransferState.queued, transferred: partial.committed);
+      t.setFileState(
+        fileId,
+        FileTransferState.queued,
+        transferred: partial.committed,
+      );
       rethrow;
     } finally {
       t._activeUploads--;
@@ -484,11 +524,14 @@ class TransferReceiver {
     final fp = t.files[fileId];
     final planned = t.plan?.files[fileId];
     if (fp == null || planned == null) throw ApiError(ErrorCodes.notFound);
-    if (fp.state == FileTransferState.done) return p.basename(fp.savedPath ?? fp.file.name);
+    if (fp.state == FileTransferState.done)
+      return p.basename(fp.savedPath ?? fp.file.name);
     final partial = t.partials[fileId];
     if (partial == null) throw ApiError(ErrorCodes.notFound);
     if (!partial.isComplete) {
-      throw ApiError(ErrorCodes.offsetMismatch, null, {'offset': partial.committed});
+      throw ApiError(ErrorCodes.offsetMismatch, null, {
+        'offset': partial.committed,
+      });
     }
     final ours = await partial.digest();
     if (!constantTimeEquals(ours, digest.toLowerCase())) {
@@ -499,7 +542,11 @@ class TransferReceiver {
     }
     final String saved;
     try {
-      saved = await destinations.finalize(partial.partPath, planned, modified: fp.file.modified);
+      saved = await destinations.finalize(
+        partial.partPath,
+        planned,
+        modified: fp.file.modified,
+      );
     } on PathTraversalException catch (e) {
       throw ApiError(ErrorCodes.forbidden, e.message);
     } on FileSystemException catch (e) {
@@ -534,7 +581,8 @@ class TransferReceiver {
           t.setStatus(TransferStatus.paused);
         }
       case 'resume':
-        if (t.status == TransferStatus.paused || t.status == TransferStatus.failed) {
+        if (t.status == TransferStatus.paused ||
+            t.status == TransferStatus.failed) {
           t.pausedRemotely = false;
           if (!t.localPaused) t.setStatus(TransferStatus.active);
         }
@@ -560,7 +608,9 @@ class TransferReceiver {
     final t = _transfers[id];
     if (t == null || !t.localPaused) return;
     t.localPaused = false;
-    t.setStatus(t.pausedRemotely ? TransferStatus.paused : TransferStatus.active);
+    t.setStatus(
+      t.pausedRemotely ? TransferStatus.paused : TransferStatus.active,
+    );
     _broadcast(t, {'type': 'resumed'});
   }
 
@@ -608,7 +658,13 @@ class TransferReceiver {
     t._disconnectTimer?.cancel();
     if (t.isAccepted) socket.add(jsonEncode(_decisionEvent(t)));
     if (t.status == TransferStatus.rejected) {
-      socket.add(jsonEncode({'type': 'decision', 'accepted': false, 'reason': 'rejected'}));
+      socket.add(
+        jsonEncode({
+          'type': 'decision',
+          'accepted': false,
+          'reason': 'rejected',
+        }),
+      );
     }
     if (t.localPaused) socket.add(jsonEncode({'type': 'paused'}));
     if (t.status == TransferStatus.cancelled) {
@@ -620,7 +676,8 @@ class TransferReceiver {
         try {
           final msg = jsonDecode(data);
           final type = msg is Map ? msg['type'] : null;
-          if (type is String && const {'pause', 'resume', 'cancel'}.contains(type)) {
+          if (type is String &&
+              const {'pause', 'resume', 'cancel'}.contains(type)) {
             unawaited(handleCommand(deviceId, id, type));
           }
         } catch (_) {}

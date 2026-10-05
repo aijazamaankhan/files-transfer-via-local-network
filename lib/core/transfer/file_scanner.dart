@@ -39,7 +39,13 @@ sealed class SendSelection {
 }
 
 class FileSelection extends SendSelection {
-  const FileSelection(this.source, this.name, {this.size, this.modified, this.mime});
+  const FileSelection(
+    this.source,
+    this.name, {
+    this.size,
+    this.modified,
+    this.mime,
+  });
   final FileSource source;
   final String name;
   final int? size;
@@ -89,7 +95,9 @@ class FileScanner {
         final dir = p.posix.dirname(rel);
         final base = p.posix.basename(rel);
         final ext = p.posix.extension(base);
-        final stem = ext.isEmpty ? base : base.substring(0, base.length - ext.length);
+        final stem = ext.isEmpty
+            ? base
+            : base.substring(0, base.length - ext.length);
         final name = '$stem ($n)$ext';
         candidate = dir == '.' ? name : '$dir/$name';
         n++;
@@ -97,7 +105,13 @@ class FileScanner {
       return candidate;
     }
 
-    void add(FileSource source, String rel, int size, DateTime? modified, String? mime) {
+    void add(
+      FileSource source,
+      String rel,
+      int size,
+      DateTime? modified,
+      String? mime,
+    ) {
       files.add(
         OutgoingFile(
           id: 'f${nextId++}',
@@ -114,8 +128,13 @@ class FileScanner {
       switch (sel) {
         case FileSelection():
           final st = (sel.size == null) ? await sel.source.stat() : null;
-          add(sel.source, _cleanName(sel.name), sel.size ?? st!.size,
-              sel.modified ?? st?.modified, sel.mime);
+          add(
+            sel.source,
+            _cleanName(sel.name),
+            sel.size ?? st!.size,
+            sel.modified ?? st?.modified,
+            sel.mime,
+          );
           loose++;
         case TreeSelection():
           folders++;
@@ -123,23 +142,37 @@ class FileScanner {
           for (final e in sel.entries) {
             final st = (e.size == null) ? await e.source.stat() : null;
             final rel = e.name.split('/').map(_cleanName).join('/');
-            add(e.source, '$root/$rel', e.size ?? st!.size,
-                e.modified ?? st?.modified, e.mime);
+            add(
+              e.source,
+              '$root/$rel',
+              e.size ?? st!.size,
+              e.modified ?? st?.modified,
+              e.mime,
+            );
           }
         case LocalPathSelection():
-          final type = await FileSystemEntity.type(sel.path, followLinks: false);
+          final type = await FileSystemEntity.type(
+            sel.path,
+            followLinks: false,
+          );
           switch (type) {
             case FileSystemEntityType.file:
               final st = await File(sel.path).stat();
-              add(LocalFileSource(sel.path), _cleanName(p.basename(sel.path)),
-                  st.size, st.modified, null);
+              add(
+                LocalFileSource(sel.path),
+                _cleanName(p.basename(sel.path)),
+                st.size,
+                st.modified,
+                null,
+              );
               loose++;
             case FileSystemEntityType.directory:
               folders++;
               final rootName = _cleanName(p.basename(p.normalize(sel.path)));
               try {
-                await for (final entity
-                    in Directory(sel.path).list(recursive: true, followLinks: false)) {
+                await for (final entity in Directory(
+                  sel.path,
+                ).list(recursive: true, followLinks: false)) {
                   if (entity is! File) {
                     if (entity is Link) skipped++;
                     continue;
@@ -150,8 +183,13 @@ class FileScanner {
                         .split(p.relative(entity.path, from: sel.path))
                         .map(_cleanName)
                         .join('/');
-                    add(LocalFileSource(entity.path), '$rootName/$rel', st.size,
-                        st.modified, null);
+                    add(
+                      LocalFileSource(entity.path),
+                      '$rootName/$rel',
+                      st.size,
+                      st.modified,
+                      null,
+                    );
                   } on FileSystemException {
                     skipped++;
                   }

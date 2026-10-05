@@ -25,16 +25,27 @@ void main() {
       '',
     ]) {
       test('rejects "$bad"', () {
-        expect(() => PathSafety.validateRelativePath(bad), throwsFormatException);
+        expect(
+          () => PathSafety.validateRelativePath(bad),
+          throwsFormatException,
+        );
       });
     }
 
     test('rejects excessive depth', () {
       final deep = List.filled(100, 'd').join('/');
-      expect(() => PathSafety.validateRelativePath(deep), throwsFormatException);
+      expect(
+        () => PathSafety.validateRelativePath(deep),
+        throwsFormatException,
+      );
     });
 
-    for (final good in ['photo.jpg', 'DCIM/Camera/IMG001.jpg', '..hidden', 'a..b/c']) {
+    for (final good in [
+      'photo.jpg',
+      'DCIM/Camera/IMG001.jpg',
+      '..hidden',
+      'a..b/c',
+    ]) {
       test('accepts "$good"', () => PathSafety.validateRelativePath(good));
     }
   });
@@ -72,7 +83,10 @@ void main() {
       expect(r, p.join(root, 'DCIM', 'Camera', 'a.jpg'));
     });
     test('throws on traversal', () {
-      expect(() => PathSafety.resolveInside('/tmp/root', '../x'), throwsFormatException);
+      expect(
+        () => PathSafety.resolveInside('/tmp/root', '../x'),
+        throwsFormatException,
+      );
     });
   });
 
@@ -121,32 +135,43 @@ void main() {
 
   group('manifest validation', () {
     test('rejects duplicate ids and paths', () {
-      Map<String, Object?> m(List<Map<String, Object?>> files) =>
-          {'transferId': 'abcdefgh-1234', 'kind': 'files', 'files': files};
+      Map<String, Object?> m(List<Map<String, Object?>> files) => {
+        'transferId': 'abcdefgh-1234',
+        'kind': 'files',
+        'files': files,
+      };
       expect(
-        () => TransferManifest.fromJson(m([
-          {'id': 'a', 'path': 'x', 'size': 1},
-          {'id': 'a', 'path': 'y', 'size': 1},
-        ])),
+        () => TransferManifest.fromJson(
+          m([
+            {'id': 'a', 'path': 'x', 'size': 1},
+            {'id': 'a', 'path': 'y', 'size': 1},
+          ]),
+        ),
         throwsFormatException,
       );
       expect(
-        () => TransferManifest.fromJson(m([
-          {'id': 'a', 'path': 'x', 'size': 1},
-          {'id': 'b', 'path': 'X', 'size': 1},
-        ])),
+        () => TransferManifest.fromJson(
+          m([
+            {'id': 'a', 'path': 'x', 'size': 1},
+            {'id': 'b', 'path': 'X', 'size': 1},
+          ]),
+        ),
         throwsFormatException,
       );
       expect(
-        () => TransferManifest.fromJson(m([
-          {'id': 'a', 'path': '../x', 'size': 1},
-        ])),
+        () => TransferManifest.fromJson(
+          m([
+            {'id': 'a', 'path': '../x', 'size': 1},
+          ]),
+        ),
         throwsFormatException,
       );
       expect(
-        () => TransferManifest.fromJson(m([
-          {'id': 'a', 'path': 'x', 'size': -5},
-        ])),
+        () => TransferManifest.fromJson(
+          m([
+            {'id': 'a', 'path': 'x', 'size': -5},
+          ]),
+        ),
         throwsFormatException,
       );
     });
@@ -164,17 +189,24 @@ void main() {
           FileCategory.folders: '/folders',
         },
       );
-      final manifest = TransferManifest(transferId: 'abcdefgh-1', kind: TransferKind.mixed, files: const [
-        ManifestFile(id: 'a', path: 'a.JPG', size: 1),
-        ManifestFile(id: 'b', path: 'clip.mp4', size: 1),
-        ManifestFile(id: 'c', path: 'notes.pdf', size: 1),
-        ManifestFile(id: 'd', path: 'DCIM/Camera/x.jpg', size: 1),
-      ]);
+      final manifest = TransferManifest(
+        transferId: 'abcdefgh-1',
+        kind: TransferKind.mixed,
+        files: const [
+          ManifestFile(id: 'a', path: 'a.JPG', size: 1),
+          ManifestFile(id: 'b', path: 'clip.mp4', size: 1),
+          ManifestFile(id: 'c', path: 'notes.pdf', size: 1),
+          ManifestFile(id: 'd', path: 'DCIM/Camera/x.jpg', size: 1),
+        ],
+      );
       final plan = DestinationManager().plan(manifest, settings);
       expect(plan.files['a']!.root, p.normalize(p.absolute('/pics')));
       expect(plan.files['b']!.root, p.normalize(p.absolute('/vids')));
       expect(plan.files['c']!.root, p.normalize(p.absolute('/dl')));
-      expect(plan.files['d']!.target, p.join(p.normalize(p.absolute('/folders')), 'DCIM', 'Camera', 'x.jpg'));
+      expect(
+        plan.files['d']!.target,
+        p.join(p.normalize(p.absolute('/folders')), 'DCIM', 'Camera', 'x.jpg'),
+      );
     });
 
     test('categories', () {
@@ -184,7 +216,10 @@ void main() {
       expect(FileCategory.forPath('a.docx'), FileCategory.documents);
       expect(FileCategory.forPath('a.zip'), FileCategory.archives);
       expect(FileCategory.forPath('a.bin'), FileCategory.other);
-      expect(FileCategory.forPath('noext', mime: 'image/png'), FileCategory.images);
+      expect(
+        FileCategory.forPath('noext', mime: 'image/png'),
+        FileCategory.images,
+      );
     });
   });
 }

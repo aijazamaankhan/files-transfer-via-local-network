@@ -54,7 +54,8 @@ class EngineConfig {
   /// Restrict the server to one address (tests use loopback).
   final InternetAddress? bindAddress;
 
-  final DeviceDiscoveryService Function(DeviceInfo Function() localInfo)? discoveryFactory;
+  final DeviceDiscoveryService Function(DeviceInfo Function() localInfo)?
+  discoveryFactory;
   final Future<void> Function()? onDiscoveryStart;
   final Future<void> Function()? onDiscoveryStop;
   final FileSourceRegistry? sourceRegistry;
@@ -109,9 +110,16 @@ class LanBeamEngine extends Notifier {
   Future<void> start() async {
     final dir = config.dataDirectory;
     identity = await DeviceIdentity.loadOrCreate(dir);
-    settings = SettingsStore(JsonFileStore(p.join(dir, 'settings.json')), config.defaultSettings);
-    trustedDevices = TrustedDeviceStore(JsonFileStore(p.join(dir, 'trusted_devices.json'), sensitive: true));
-    history = TransferHistoryService(JsonFileStore(p.join(dir, 'history.json')));
+    settings = SettingsStore(
+      JsonFileStore(p.join(dir, 'settings.json')),
+      config.defaultSettings,
+    );
+    trustedDevices = TrustedDeviceStore(
+      JsonFileStore(p.join(dir, 'trusted_devices.json'), sensitive: true),
+    );
+    history = TransferHistoryService(
+      JsonFileStore(p.join(dir, 'history.json')),
+    );
     await Future.wait([settings.load(), trustedDevices.load(), history.load()]);
 
     sources = config.sourceRegistry ?? FileSourceRegistry();
@@ -119,7 +127,10 @@ class LanBeamEngine extends Notifier {
         ? await IsolateChecksumService.spawn()
         : InlineChecksumService();
     destinations = DestinationManager();
-    auth = AuthenticationService(localDeviceId: identity.deviceId, trustedDevices: trustedDevices);
+    auth = AuthenticationService(
+      localDeviceId: identity.deviceId,
+      trustedDevices: trustedDevices,
+    );
     pairing = PairingService(
       localFingerprint: identity.fingerprint,
       trustedDevices: trustedDevices,
@@ -143,7 +154,8 @@ class LanBeamEngine extends Notifier {
       pairing: pairing,
       auth: auth,
       receiver: receiver,
-      onPeerSeen: (id, address) => trustedDevices.touch(id, addresses: [address]),
+      onPeerSeen: (id, address) =>
+          trustedDevices.touch(id, addresses: [address]),
       onPeerRevoked: (id) async {
         _clients.remove(id)?.close();
         await trustedDevices.remove(id);
@@ -163,7 +175,8 @@ class LanBeamEngine extends Notifier {
   }
 
   Future<void> _startDiscovery() async {
-    final d = discovery ??= config.discoveryFactory?.call(() => localInfo) ??
+    final d = discovery ??=
+        config.discoveryFactory?.call(() => localInfo) ??
         UdpMulticastDiscovery(
           localInfo: () => localInfo,
           onBeforeStart: config.onDiscoveryStart,
@@ -202,15 +215,20 @@ class LanBeamEngine extends Notifier {
     pairing.requireApprovalForQr = after.requireApprovalForQr;
     if (before.servicePort != after.servicePort) {
       await server.stop();
-      await server.start(preferredPort: after.servicePort, address: config.bindAddress);
+      await server.start(
+        preferredPort: after.servicePort,
+        address: config.bindAddress,
+      );
     }
-    if (config.enableDiscovery && before.discoveryEnabled != after.discoveryEnabled) {
+    if (config.enableDiscovery &&
+        before.discoveryEnabled != after.discoveryEnabled) {
       if (after.discoveryEnabled) {
         await _startDiscovery();
       } else {
         await discovery?.stop();
       }
-    } else if (before.deviceName != after.deviceName || before.servicePort != after.servicePort) {
+    } else if (before.deviceName != after.deviceName ||
+        before.servicePort != after.servicePort) {
       await discovery?.announce();
     }
     notifyListeners();
@@ -221,7 +239,9 @@ class LanBeamEngine extends Notifier {
 
   /// Creates a fresh QR pairing code for this device.
   Future<QrPairingPayload> createQrPayload() async {
-    final token = pairing.createQrToken(Duration(minutes: settings.value.qrTokenTtlMinutes));
+    final token = pairing.createQrToken(
+      Duration(minutes: settings.value.qrTokenTtlMinutes),
+    );
     final addresses = await NetworkService.localAddresses();
     return QrPairingPayload(
       deviceId: identity.deviceId,
@@ -252,7 +272,11 @@ class LanBeamEngine extends Notifier {
 
   /// Step 1 of PIN pairing: asks [host]:[port] (fingerprint [fingerprint],
   /// from discovery or a direct-IP probe) to display a PIN.
-  Future<PinPairingSession> startPinPairing(String host, int port, String fingerprint) async {
+  Future<PinPairingSession> startPinPairing(
+    String host,
+    int port,
+    String fingerprint,
+  ) async {
     final client = PeerClient(
       hosts: [host],
       port: port,
@@ -271,7 +295,10 @@ class LanBeamEngine extends Notifier {
     }
   }
 
-  Future<TrustedDevice> _storePairing(PairingResult result, PeerClient client) async {
+  Future<TrustedDevice> _storePairing(
+    PairingResult result,
+    PeerClient client,
+  ) async {
     final active = client.activeHost;
     final trusted = TrustedDevice(
       info: result.device,
@@ -332,7 +359,8 @@ class LanBeamEngine extends Notifier {
     if (d == null) return null;
     final existing = _clients[deviceId];
     final discovered = discovery?.find(deviceId);
-    final port = (discovered != null && discovered.info.fingerprint == d.fingerprint)
+    final port =
+        (discovered != null && discovered.info.fingerprint == d.fingerprint)
         ? discovered.info.port
         : d.info.port;
     if (existing != null) {
@@ -352,7 +380,10 @@ class LanBeamEngine extends Notifier {
   }
 
   /// Scans [selections] and starts sending them to a paired device.
-  Future<OutgoingTransfer> send(String deviceId, List<SendSelection> selections) async {
+  Future<OutgoingTransfer> send(
+    String deviceId,
+    List<SendSelection> selections,
+  ) async {
     final scan = await _scanner.scan(selections);
     if (scan.files.isEmpty) {
       throw const LanBeamException(FailureKind.fileMissing, 'Nothing to send');
@@ -360,7 +391,11 @@ class LanBeamEngine extends Notifier {
     return sendScanned(deviceId, scan);
   }
 
-  Future<OutgoingTransfer> sendScanned(String deviceId, ScanResult scan, {String? transferId}) async {
+  Future<OutgoingTransfer> sendScanned(
+    String deviceId,
+    ScanResult scan, {
+    String? transferId,
+  }) async {
     final trusted = trustedDevices.get(deviceId);
     final client = _clientFor(deviceId);
     if (trusted == null || client == null) {
@@ -373,7 +408,8 @@ class LanBeamEngine extends Notifier {
       client: client,
       checksums: checksums,
       concurrency: settings.value.maxConcurrentFiles,
-      resolveHosts: () async => _hostsFor(trustedDevices.get(deviceId) ?? trusted),
+      resolveHosts: () async =>
+          _hostsFor(trustedDevices.get(deviceId) ?? trusted),
       onSettled: _onOutgoingSettled,
     );
     _register(t);
@@ -382,17 +418,24 @@ class LanBeamEngine extends Notifier {
 
   void _register(OutgoingTransfer t) {
     _outgoing[t.id] = t;
-    unawaited(history.record(t.toHistory(resumable: true, resumeData: t.resumeData())));
+    unawaited(
+      history.record(t.toHistory(resumable: true, resumeData: t.resumeData())),
+    );
     _queue.enqueue(t);
     notifyListeners();
   }
 
   void _onOutgoingSettled(OutgoingTransfer t) {
-    final resumable = t.status == TransferStatus.failed || t.status == TransferStatus.paused;
-    unawaited(history.record(t.toHistory(
-      resumable: resumable,
-      resumeData: resumable ? t.resumeData() : null,
-    )));
+    final resumable =
+        t.status == TransferStatus.failed || t.status == TransferStatus.paused;
+    unawaited(
+      history.record(
+        t.toHistory(
+          resumable: resumable,
+          resumeData: resumable ? t.resumeData() : null,
+        ),
+      ),
+    );
     notifyListeners();
   }
 
@@ -406,16 +449,32 @@ class LanBeamEngine extends Notifier {
       return live;
     }
     final data = record.resumeData;
-    if (data == null) throw const LanBeamException(FailureKind.fileMissing, 'no resume data');
-    final manifest = TransferManifest.fromJson((data['manifest'] as Map).cast());
+    if (data == null)
+      throw const LanBeamException(FailureKind.fileMissing, 'no resume data');
+    final manifest = TransferManifest.fromJson(
+      (data['manifest'] as Map).cast(),
+    );
     final rawSources = (data['sources'] as Map).cast<String, Object?>();
     final files = <OutgoingFile>[];
     for (final f in manifest.files) {
       final src = sources.fromJson((rawSources[f.id] as Map).cast());
       if (src == null) throw const LanBeamException(FailureKind.fileMissing);
-      files.add(OutgoingFile(id: f.id, relativePath: f.path, source: src, size: f.size, modified: f.modified, mime: f.mime));
+      files.add(
+        OutgoingFile(
+          id: f.id,
+          relativePath: f.path,
+          source: src,
+          size: f.size,
+          modified: f.modified,
+          mime: f.mime,
+        ),
+      );
     }
-    return sendScanned(record.peerId, ScanResult(files, manifest.kind), transferId: manifest.transferId);
+    return sendScanned(
+      record.peerId,
+      ScanResult(files, manifest.kind),
+      transferId: manifest.transferId,
+    );
   }
 
   OutgoingTransfer? outgoingById(String id) => _outgoing[id];
@@ -431,7 +490,8 @@ class LanBeamEngine extends Notifier {
     notifyListeners();
   }
 
-  void pauseTransfer(TransferTask t) => t is OutgoingTransfer ? t.pause() : receiver.pause(t.id);
+  void pauseTransfer(TransferTask t) =>
+      t is OutgoingTransfer ? t.pause() : receiver.pause(t.id);
   void resumeTransfer(TransferTask t) {
     if (t is OutgoingTransfer) {
       t.status == TransferStatus.failed ? unawaited(t.retry()) : t.resume();
@@ -459,7 +519,11 @@ class LanBeamEngine extends Notifier {
       c.close();
     }
     await checksums.dispose();
-    await Future.wait([settings.flush(), trustedDevices.flush(), history.flush()]);
+    await Future.wait([
+      settings.flush(),
+      trustedDevices.flush(),
+      history.flush(),
+    ]);
   }
 }
 

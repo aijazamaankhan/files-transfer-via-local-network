@@ -234,7 +234,8 @@ class PairingService {
     switch (method) {
       case 'qr':
         final session = _qr;
-        final valid = session != null &&
+        final valid =
+            session != null &&
             token != null &&
             !session.consumed &&
             _clock().isBefore(session.expires) &&

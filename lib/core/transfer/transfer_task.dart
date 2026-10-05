@@ -50,8 +50,7 @@ class TransferTask extends ThrottledNotifier {
   int get totalBytes => manifest.totalSize;
   TransferStatus get status => _status;
 
-  int get transferredBytes =>
-      files.values.fold(0, (a, f) => a + f.transferred);
+  int get transferredBytes => files.values.fold(0, (a, f) => a + f.transferred);
 
   /// Bytes that still need to cross the network (skipped files excluded).
   int get remainingBytes => files.values
@@ -107,7 +106,12 @@ class TransferTask extends ThrottledNotifier {
     markDirty();
   }
 
-  void setFileState(String fileId, FileTransferState s, {String? error, int? transferred}) {
+  void setFileState(
+    String fileId,
+    FileTransferState s, {
+    String? error,
+    int? transferred,
+  }) {
     final f = files[fileId];
     if (f == null) return;
     f.state = s;
@@ -116,22 +120,24 @@ class TransferTask extends ThrottledNotifier {
     markDirty();
   }
 
-  HistoryRecord toHistory({bool resumable = false, Map<String, Object?>? resumeData}) =>
-      HistoryRecord(
-        transferId: id,
-        direction: direction,
-        peerId: peer.id,
-        peerName: peer.name,
-        title: title,
-        fileCount: files.length,
-        totalBytes: totalBytes,
-        transferredBytes: transferredBytes,
-        status: status,
-        startedAt: startedAt,
-        finishedAt: finishedAt ?? (status.isRunning ? null : DateTime.now()),
-        error: error?.userMessage,
-        destination: destinationLabel,
-        resumable: resumable,
-        resumeData: resumeData,
-      );
+  HistoryRecord toHistory({
+    bool resumable = false,
+    Map<String, Object?>? resumeData,
+  }) => HistoryRecord(
+    transferId: id,
+    direction: direction,
+    peerId: peer.id,
+    peerName: peer.name,
+    title: title,
+    fileCount: files.length,
+    totalBytes: totalBytes,
+    transferredBytes: transferredBytes,
+    status: status,
+    startedAt: startedAt,
+    finishedAt: finishedAt ?? (status.isRunning ? null : DateTime.now()),
+    error: error?.userMessage,
+    destination: destinationLabel,
+    resumable: resumable,
+    resumeData: resumeData,
+  );
 }

@@ -24,7 +24,10 @@ import 'helpers.dart';
 
 /// A source that delivers bytes slowly so tests can interrupt mid-transfer.
 class ThrottledSource implements FileSource {
-  ThrottledSource(this.inner, {this.chunkDelay = const Duration(milliseconds: 5)});
+  ThrottledSource(
+    this.inner, {
+    this.chunkDelay = const Duration(milliseconds: 5),
+  });
   final LocalFileSource inner;
   Duration chunkDelay;
   int bytesRead = 0;
@@ -86,7 +89,11 @@ void main() {
     expect(pc.engine.history.records.first.status, TransferStatus.completed);
     expect(phone.engine.history.records.first.status, TransferStatus.completed);
     // Staging area is cleaned up.
-    expect(Directory(p.join(pc.downloads, DestinationManager.stagingDirName)).existsSync(), isFalse);
+    expect(
+      Directory(p.join(pc.downloads, DestinationManager.stagingDirName))
+          .existsSync(),
+      isFalse,
+    );
   });
 
   test('transfers in both directions (symmetric peers)', () async {
@@ -105,12 +112,17 @@ void main() {
       hashes['file$i.bin'] = await writeRandomFile(f, i * 37000, seed: i);
     }
     final t = await phone.engine.send(pcId(), [
-      for (var i = 0; i < 12; i++) LocalPathSelection(p.join(src.path, 'file$i.bin')),
+      for (var i = 0; i < 12; i++)
+        LocalPathSelection(p.join(src.path, 'file$i.bin')),
     ]);
     await waitForStatus(t, (s) => s.isFinal || s == TransferStatus.failed);
     expect(t.status, TransferStatus.completed, reason: '${t.error}');
     for (final e in hashes.entries) {
-      expect(await sha256File(p.join(pc.downloads, e.key)), e.value, reason: e.key);
+      expect(
+        await sha256File(p.join(pc.downloads, e.key)),
+        e.value,
+        reason: e.key,
+      );
     }
   });
 
@@ -125,7 +137,11 @@ void main() {
     final hashes = <String, String>{};
     var seed = 0;
     for (final e in files.entries) {
-      hashes[e.key] = await writeRandomFile(p.join(dcim, e.key), e.value, seed: seed++);
+      hashes[e.key] = await writeRandomFile(
+        p.join(dcim, e.key),
+        e.value,
+        seed: seed++,
+      );
     }
     final t = await phone.engine.send(pcId(), [LocalPathSelection(dcim)]);
     expect(t.manifest.kind, TransferKind.folder);
@@ -161,21 +177,27 @@ void main() {
       final existing = p.join(pc.downloads, 'doc.txt');
       await Directory(pc.downloads).create(recursive: true);
 
-      await pc.engine.updateSettings((s) => s.copyWith(conflictPolicy: ConflictPolicy.replace));
+      await pc.engine.updateSettings(
+        (s) => s.copyWith(conflictPolicy: ConflictPolicy.replace),
+      );
       File(existing).writeAsStringSync('old');
       final newHash = await writeRandomFile(file, 5000);
       await sendOnce(file);
       expect(await sha256File(existing), newHash);
       expect(File(p.join(pc.downloads, 'doc (1).txt')).existsSync(), isFalse);
 
-      await pc.engine.updateSettings((s) => s.copyWith(conflictPolicy: ConflictPolicy.skip));
+      await pc.engine.updateSettings(
+        (s) => s.copyWith(conflictPolicy: ConflictPolicy.skip),
+      );
       File(existing).writeAsStringSync('keep me');
       await sendOnce(file);
       expect(File(existing).readAsStringSync(), 'keep me');
     });
 
     test('ask: user resolves conflicts with "apply to all"', () async {
-      await pc.engine.updateSettings((s) => s.copyWith(conflictPolicy: ConflictPolicy.ask));
+      await pc.engine.updateSettings(
+        (s) => s.copyWith(conflictPolicy: ConflictPolicy.ask),
+      );
       await Directory(pc.downloads).create(recursive: true);
       File(p.join(pc.downloads, 'a.txt')).writeAsStringSync('old a');
       File(p.join(pc.downloads, 'b.txt')).writeAsStringSync('old b');
@@ -186,7 +208,8 @@ void main() {
       final requests = <IncomingRequest>[];
       final sub = pc.engine.receiver.requests.listen(requests.add);
       final t = await phone.engine.send(pcId(), [
-        for (final n in ['a.txt', 'b.txt', 'c.txt']) LocalPathSelection(p.join(src.path, n)),
+        for (final n in ['a.txt', 'b.txt', 'c.txt'])
+          LocalPathSelection(p.join(src.path, n)),
       ]);
       await waitUntil(() => requests.isNotEmpty, reason: 'no request');
       final req = requests.single;
@@ -229,55 +252,101 @@ void main() {
     await sub.cancel();
   });
 
-  test('interrupted transfer resumes from the committed offset after reconnect', () async {
-    final size = Protocol.blockSize * 3 + 12345;
-    final file = p.join(src.path, 'big.bin');
-    final hash = await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 4));
-    final scan = ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'big.bin', source: source, size: size, modified: File(file).lastModifiedSync()),
-    ], TransferKind.files);
-    final t = await phone.engine.sendScanned(pcId(), scan);
+  test(
+    'interrupted transfer resumes from the committed offset after reconnect',
+    () async {
+      final size = Protocol.blockSize * 3 + 12345;
+      final file = p.join(src.path, 'big.bin');
+      final hash = await writeRandomFile(file, size);
+      final source = ThrottledSource(
+        LocalFileSource(file),
+        chunkDelay: const Duration(milliseconds: 4),
+      );
+      final scan = ScanResult([
+        OutgoingFile(
+          id: 'f0',
+          relativePath: 'big.bin',
+          source: source,
+          size: size,
+          modified: File(file).lastModifiedSync(),
+        ),
+      ], TransferKind.files);
+      final t = await phone.engine.sendScanned(pcId(), scan);
 
-    // Wait until more than one block has been committed by the receiver.
-    await waitUntil(() {
-      final r = pc.engine.receiver[t.id];
-      return r != null && (r.partials['f0']?.committed ?? 0) >= Protocol.blockSize;
-    }, timeout: const Duration(seconds: 60), reason: 'no block committed');
+      // Wait until more than one block has been committed by the receiver.
+      await waitUntil(
+        () {
+          final r = pc.engine.receiver[t.id];
+          return r != null &&
+              (r.partials['f0']?.committed ?? 0) >= Protocol.blockSize;
+        },
+        timeout: const Duration(seconds: 60),
+        reason: 'no block committed',
+      );
 
-    // Simulate the PC disappearing from the network (server stops).
-    final port = pc.engine.server.port;
-    await pc.engine.server.stop();
-    await waitForStatus(t, (s) => s == TransferStatus.pending || s == TransferStatus.failed,
-        timeout: const Duration(seconds: 20));
-    final committedBefore = pc.engine.receiver[t.id]!.partials['f0']!.committed;
-    expect(committedBefore, greaterThanOrEqualTo(Protocol.blockSize));
+      // Simulate the PC disappearing from the network (server stops).
+      final port = pc.engine.server.port;
+      await pc.engine.server.stop();
+      await waitForStatus(
+        t,
+        (s) => s == TransferStatus.pending || s == TransferStatus.failed,
+        timeout: const Duration(seconds: 20),
+      );
+      final committedBefore =
+          pc.engine.receiver[t.id]!.partials['f0']!.committed;
+      expect(committedBefore, greaterThanOrEqualTo(Protocol.blockSize));
 
-    // PC comes back on the same port; the sender's retry loop reconnects.
-    source.chunkDelay = Duration.zero;
-    final readBefore = source.bytesRead;
-    await pc.engine.server.start(preferredPort: port, address: InternetAddress.loopbackIPv4);
-    await waitForStatus(t, (s) => s.isFinal || s == TransferStatus.failed, timeout: const Duration(seconds: 90));
-    expect(t.status, TransferStatus.completed, reason: '${t.error}');
-    expect(await sha256File(p.join(pc.downloads, 'big.bin')), hash);
-    // The resumed upload started at the committed offset, not zero.
-    final reread = source.bytesRead - readBefore;
-    expect(reread, lessThanOrEqualTo(size - committedBefore + Protocol.ioChunkSize));
-  });
+      // PC comes back on the same port; the sender's retry loop reconnects.
+      source.chunkDelay = Duration.zero;
+      final readBefore = source.bytesRead;
+      await pc.engine.server.start(
+        preferredPort: port,
+        address: InternetAddress.loopbackIPv4,
+      );
+      await waitForStatus(
+        t,
+        (s) => s.isFinal || s == TransferStatus.failed,
+        timeout: const Duration(seconds: 90),
+      );
+      expect(t.status, TransferStatus.completed, reason: '${t.error}');
+      expect(await sha256File(p.join(pc.downloads, 'big.bin')), hash);
+      // The resumed upload started at the committed offset, not zero.
+      final reread = source.bytesRead - readBefore;
+      expect(
+        reread,
+        lessThanOrEqualTo(size - committedBefore + Protocol.ioChunkSize),
+      );
+    },
+  );
 
   test('pause and resume from the sender', () async {
     final size = Protocol.blockSize * 2 + 999;
     final file = p.join(src.path, 'pause.bin');
     final hash = await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 3));
-    final t = await phone.engine.sendScanned(pcId(), ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'pause.bin', source: source, size: size),
-    ], TransferKind.files));
-    await waitUntil(() => t.transferredBytes > Protocol.blockSize + Protocol.ioChunkSize);
+    final source = ThrottledSource(
+      LocalFileSource(file),
+      chunkDelay: const Duration(milliseconds: 3),
+    );
+    final t = await phone.engine.sendScanned(
+      pcId(),
+      ScanResult([
+        OutgoingFile(
+          id: 'f0',
+          relativePath: 'pause.bin',
+          source: source,
+          size: size,
+        ),
+      ], TransferKind.files),
+    );
+    await waitUntil(
+      () => t.transferredBytes > Protocol.blockSize + Protocol.ioChunkSize,
+    );
     t.pause();
     expect(t.status, TransferStatus.paused);
-    await waitUntil(() => pc.engine.receiver[t.id]?.status == TransferStatus.paused,
-        reason: 'receiver did not see pause');
+    await waitUntil(
+      () => pc.engine.receiver[t.id]?.status == TransferStatus.paused,
+      reason: 'receiver did not see pause',
+    );
     source.chunkDelay = Duration.zero;
     t.resume();
     await waitForStatus(t, (s) => s.isFinal || s == TransferStatus.failed);
@@ -289,13 +358,32 @@ void main() {
     final size = Protocol.blockSize + 4096;
     final file = p.join(src.path, 'rp.bin');
     final hash = await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 3));
-    final t = await phone.engine.sendScanned(pcId(), ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'rp.bin', source: source, size: size),
-    ], TransferKind.files));
-    await waitUntil(() => (pc.engine.receiver[t.id]?.transferredBytes ?? 0) > 2 * Protocol.ioChunkSize);
+    final source = ThrottledSource(
+      LocalFileSource(file),
+      chunkDelay: const Duration(milliseconds: 3),
+    );
+    final t = await phone.engine.sendScanned(
+      pcId(),
+      ScanResult([
+        OutgoingFile(
+          id: 'f0',
+          relativePath: 'rp.bin',
+          source: source,
+          size: size,
+        ),
+      ], TransferKind.files),
+    );
+    await waitUntil(
+      () =>
+          (pc.engine.receiver[t.id]?.transferredBytes ?? 0) >
+          2 * Protocol.ioChunkSize,
+    );
     pc.engine.receiver.pause(t.id);
-    await waitForStatus(t, (s) => s == TransferStatus.paused, timeout: const Duration(seconds: 10));
+    await waitForStatus(
+      t,
+      (s) => s == TransferStatus.paused,
+      timeout: const Duration(seconds: 10),
+    );
     expect(t.pausedRemotely, isTrue);
     source.chunkDelay = Duration.zero;
     pc.engine.receiver.resume(t.id);
@@ -308,30 +396,72 @@ void main() {
     final size = Protocol.blockSize * 2;
     final file = p.join(src.path, 'c.bin');
     await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 5));
-    final t = await phone.engine.sendScanned(pcId(), ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'c.bin', source: source, size: size),
-    ], TransferKind.files));
-    await waitUntil(() => (pc.engine.receiver[t.id]?.transferredBytes ?? 0) > Protocol.ioChunkSize);
+    final source = ThrottledSource(
+      LocalFileSource(file),
+      chunkDelay: const Duration(milliseconds: 5),
+    );
+    final t = await phone.engine.sendScanned(
+      pcId(),
+      ScanResult([
+        OutgoingFile(
+          id: 'f0',
+          relativePath: 'c.bin',
+          source: source,
+          size: size,
+        ),
+      ], TransferKind.files),
+    );
+    await waitUntil(
+      () =>
+          (pc.engine.receiver[t.id]?.transferredBytes ?? 0) >
+          Protocol.ioChunkSize,
+    );
     await pc.engine.receiver.cancel(t.id);
-    await waitForStatus(t, (s) => s.isFinal || s == TransferStatus.failed, timeout: const Duration(seconds: 15));
+    await waitForStatus(
+      t,
+      (s) => s.isFinal || s == TransferStatus.failed,
+      timeout: const Duration(seconds: 15),
+    );
     expect(t.status, TransferStatus.cancelled);
     expect(File(p.join(pc.downloads, 'c.bin')).existsSync(), isFalse);
-    expect(Directory(p.join(pc.downloads, DestinationManager.stagingDirName, t.id)).existsSync(), isFalse);
+    expect(
+      Directory(p.join(pc.downloads, DestinationManager.stagingDirName, t.id))
+          .existsSync(),
+      isFalse,
+    );
   });
 
   test('corrupted partial data is detected by checksum and re-sent', () async {
     final size = Protocol.blockSize + 50000;
     final file = p.join(src.path, 'corrupt.bin');
     final hash = await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 4));
-    final t = await phone.engine.sendScanned(pcId(), ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'corrupt.bin', source: source, size: size),
-    ], TransferKind.files));
-    await waitUntil(() => (pc.engine.receiver[t.id]?.partials['f0']?.committed ?? 0) >= Protocol.blockSize,
-        timeout: const Duration(seconds: 60));
+    final source = ThrottledSource(
+      LocalFileSource(file),
+      chunkDelay: const Duration(milliseconds: 4),
+    );
+    final t = await phone.engine.sendScanned(
+      pcId(),
+      ScanResult([
+        OutgoingFile(
+          id: 'f0',
+          relativePath: 'corrupt.bin',
+          source: source,
+          size: size,
+        ),
+      ], TransferKind.files),
+    );
+    await waitUntil(
+      () =>
+          (pc.engine.receiver[t.id]?.partials['f0']?.committed ?? 0) >=
+          Protocol.blockSize,
+      timeout: const Duration(seconds: 60),
+    );
     t.pause();
-    await waitUntil(() => pc.engine.receiver[t.id]!.partials['f0']!.committed >= Protocol.blockSize);
+    await waitUntil(
+      () =>
+          pc.engine.receiver[t.id]!.partials['f0']!.committed >=
+          Protocol.blockSize,
+    );
     // Flip a byte inside the committed block (simulates disk corruption).
     final partPath = pc.engine.receiver[t.id]!.partials['f0']!.partPath;
     final raf = File(partPath).openSync(mode: FileMode.append);
@@ -359,8 +489,11 @@ void main() {
 
   test('unavailable destination folder fails with a clear error', () async {
     // A path below a regular file can never be created (works even as root).
-    final blocker = File(p.join(pc.root.path, 'not_a_dir'))..writeAsStringSync('x');
-    await pc.engine.updateSettings((s) => s.copyWith(downloadDirectory: p.join(blocker.path, 'sub')));
+    final blocker = File(p.join(pc.root.path, 'not_a_dir'))
+      ..writeAsStringSync('x');
+    await pc.engine.updateSettings(
+      (s) => s.copyWith(downloadDirectory: p.join(blocker.path, 'sub')),
+    );
     await pc.engine.updateSettings((s) => s.copyWith(autoAcceptTrusted: false));
     IncomingRequest? request;
     final sub = pc.engine.receiver.requests.listen((r) => request = r);
@@ -373,62 +506,124 @@ void main() {
     // …and choosing it explicitly fails with a destination error.
     await expectLater(
       request!.planFor(p.join(blocker.path, 'sub')),
-      throwsA(isA<LanBeamException>().having((e) => e.kind, 'kind', FailureKind.destinationUnavailable)),
+      throwsA(
+        isA<LanBeamException>().having(
+          (e) => e.kind,
+          'kind',
+          FailureKind.destinationUnavailable,
+        ),
+      ),
     );
     await request!.reject();
     await waitForStatus(t, (s) => s.isFinal || s == TransferStatus.failed);
     await sub.cancel();
   });
 
-  test('receiver restart: transfer resumes from persisted partial data', () async {
-    final size = Protocol.blockSize * 2 + 777;
-    final file = p.join(src.path, 'restart.bin');
-    final hash = await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 4));
-    final t = await phone.engine.sendScanned(pcId(), ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'restart.bin', source: source, size: size, modified: File(file).lastModifiedSync()),
-    ], TransferKind.files));
-    await waitUntil(() => (pc.engine.receiver[t.id]?.partials['f0']?.committed ?? 0) >= Protocol.blockSize,
-        timeout: const Duration(seconds: 60));
-    final port = pc.engine.server.port;
-    // Full app restart of the receiver (new engine, same data directory).
-    await pc.engine.dispose();
-    source.chunkDelay = Duration.zero;
-    final root = pc.root;
-    pc = await TestPeer.start('PC', reuseRoot: root, port: port);
-    expect(pc.engine.receiver[t.id], isNotNull, reason: 'inbox not restored');
-    expect(pc.engine.receiver[t.id]!.transferredBytes, greaterThanOrEqualTo(Protocol.blockSize));
-    await waitForStatus(t, (s) => s.isFinal || s == TransferStatus.failed, timeout: const Duration(seconds: 90));
-    expect(t.status, TransferStatus.completed, reason: '${t.error}');
-    expect(await sha256File(p.join(pc.downloads, 'restart.bin')), hash);
-  });
+  test(
+    'receiver restart: transfer resumes from persisted partial data',
+    () async {
+      final size = Protocol.blockSize * 2 + 777;
+      final file = p.join(src.path, 'restart.bin');
+      final hash = await writeRandomFile(file, size);
+      final source = ThrottledSource(
+        LocalFileSource(file),
+        chunkDelay: const Duration(milliseconds: 4),
+      );
+      final t = await phone.engine.sendScanned(
+        pcId(),
+        ScanResult([
+          OutgoingFile(
+            id: 'f0',
+            relativePath: 'restart.bin',
+            source: source,
+            size: size,
+            modified: File(file).lastModifiedSync(),
+          ),
+        ], TransferKind.files),
+      );
+      await waitUntil(
+        () =>
+            (pc.engine.receiver[t.id]?.partials['f0']?.committed ?? 0) >=
+            Protocol.blockSize,
+        timeout: const Duration(seconds: 60),
+      );
+      final port = pc.engine.server.port;
+      // Full app restart of the receiver (new engine, same data directory).
+      await pc.engine.dispose();
+      source.chunkDelay = Duration.zero;
+      final root = pc.root;
+      pc = await TestPeer.start('PC', reuseRoot: root, port: port);
+      expect(pc.engine.receiver[t.id], isNotNull, reason: 'inbox not restored');
+      expect(
+        pc.engine.receiver[t.id]!.transferredBytes,
+        greaterThanOrEqualTo(Protocol.blockSize),
+      );
+      await waitForStatus(
+        t,
+        (s) => s.isFinal || s == TransferStatus.failed,
+        timeout: const Duration(seconds: 90),
+      );
+      expect(t.status, TransferStatus.completed, reason: '${t.error}');
+      expect(await sha256File(p.join(pc.downloads, 'restart.bin')), hash);
+    },
+  );
 
-  test('sender restart: resume from history continues the same transfer', () async {
-    final size = Protocol.blockSize * 2 + 4242;
-    final file = p.join(src.path, 'sres.bin');
-    final hash = await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 4));
-    final t = await phone.engine.sendScanned(pcId(), ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'sres.bin', source: source, size: size, modified: File(file).lastModifiedSync()),
-    ], TransferKind.files));
-    await waitUntil(() => (pc.engine.receiver[t.id]?.partials['f0']?.committed ?? 0) >= Protocol.blockSize,
-        timeout: const Duration(seconds: 60));
-    t.pause();
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final record = phone.engine.history.records.firstWhere((r) => r.transferId == t.id);
-    expect(record.resumeData, isNotNull);
+  test(
+    'sender restart: resume from history continues the same transfer',
+    () async {
+      final size = Protocol.blockSize * 2 + 4242;
+      final file = p.join(src.path, 'sres.bin');
+      final hash = await writeRandomFile(file, size);
+      final source = ThrottledSource(
+        LocalFileSource(file),
+        chunkDelay: const Duration(milliseconds: 4),
+      );
+      final t = await phone.engine.sendScanned(
+        pcId(),
+        ScanResult([
+          OutgoingFile(
+            id: 'f0',
+            relativePath: 'sres.bin',
+            source: source,
+            size: size,
+            modified: File(file).lastModifiedSync(),
+          ),
+        ], TransferKind.files),
+      );
+      await waitUntil(
+        () =>
+            (pc.engine.receiver[t.id]?.partials['f0']?.committed ?? 0) >=
+            Protocol.blockSize,
+        timeout: const Duration(seconds: 60),
+      );
+      t.pause();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      final record = phone.engine.history.records.firstWhere(
+        (r) => r.transferId == t.id,
+      );
+      expect(record.resumeData, isNotNull);
 
-    // Restart the phone app.
-    final root = phone.root;
-    await phone.engine.dispose();
-    phone = await TestPeer.start('Phone', reuseRoot: root);
-    final saved = phone.engine.history.records.firstWhere((r) => r.transferId == t.id);
-    final resumed = await phone.engine.resumeFromHistory(saved);
-    expect(resumed.id, t.id);
-    await waitForStatus(resumed, (s) => s.isFinal || s == TransferStatus.failed);
-    expect(resumed.status, TransferStatus.completed, reason: '${resumed.error}');
-    expect(await sha256File(p.join(pc.downloads, 'sres.bin')), hash);
-  });
+      // Restart the phone app.
+      final root = phone.root;
+      await phone.engine.dispose();
+      phone = await TestPeer.start('Phone', reuseRoot: root);
+      final saved = phone.engine.history.records.firstWhere(
+        (r) => r.transferId == t.id,
+      );
+      final resumed = await phone.engine.resumeFromHistory(saved);
+      expect(resumed.id, t.id);
+      await waitForStatus(
+        resumed,
+        (s) => s.isFinal || s == TransferStatus.failed,
+      );
+      expect(
+        resumed.status,
+        TransferStatus.completed,
+        reason: '${resumed.error}',
+      );
+      expect(await sha256File(p.join(pc.downloads, 'sres.bin')), hash);
+    },
+  );
 
   group('unauthorized access', () {
     test('an unpaired device cannot authenticate or upload', () async {
@@ -442,8 +637,20 @@ void main() {
           secret: Uint8List(32), // guessed secret
         );
         await expectLater(
-          client.offer(TransferManifest(transferId: 'abcdefgh-0000', kind: TransferKind.files, files: const [])),
-          throwsA(isA<LanBeamException>().having((e) => e.kind, 'kind', FailureKind.unauthorized)),
+          client.offer(
+            TransferManifest(
+              transferId: 'abcdefgh-0000',
+              kind: TransferKind.files,
+              files: const [],
+            ),
+          ),
+          throwsA(
+            isA<LanBeamException>().having(
+              (e) => e.kind,
+              'kind',
+              FailureKind.unauthorized,
+            ),
+          ),
         );
         client.close();
       } finally {
@@ -451,24 +658,30 @@ void main() {
       }
     });
 
-    test('raw requests without a token get 401 on every protected endpoint', () async {
-      final http = HttpClient()..badCertificateCallback = (_, _, _) => true;
-      final port = pc.engine.server.port;
-      for (final (method, path) in [
-        ('POST', '/api/v1/transfers'),
-        ('GET', '/api/v1/transfers/abc'),
-        ('PUT', '/api/v1/transfers/abc/files/f0?offset=0'),
-        ('POST', '/api/v1/transfers/abc/cancel'),
-        ('POST', '/api/v1/pair/revoke'),
-      ]) {
-        final req = await http.openUrl(method, Uri.parse('https://127.0.0.1:$port$path'));
-        req.headers.set('Authorization', 'Bearer forged-token');
-        final res = await req.close();
-        await res.drain<void>();
-        expect(res.statusCode, 401, reason: '$method $path');
-      }
-      http.close(force: true);
-    });
+    test(
+      'raw requests without a token get 401 on every protected endpoint',
+      () async {
+        final http = HttpClient()..badCertificateCallback = (_, _, _) => true;
+        final port = pc.engine.server.port;
+        for (final (method, path) in [
+          ('POST', '/api/v1/transfers'),
+          ('GET', '/api/v1/transfers/abc'),
+          ('PUT', '/api/v1/transfers/abc/files/f0?offset=0'),
+          ('POST', '/api/v1/transfers/abc/cancel'),
+          ('POST', '/api/v1/pair/revoke'),
+        ]) {
+          final req = await http.openUrl(
+            method,
+            Uri.parse('https://127.0.0.1:$port$path'),
+          );
+          req.headers.set('Authorization', 'Bearer forged-token');
+          final res = await req.close();
+          await res.drain<void>();
+          expect(res.statusCode, 401, reason: '$method $path');
+        }
+        http.close(force: true);
+      },
+    );
 
     test('a man-in-the-middle certificate is refused (pinning)', () async {
       final client = PeerClient(
@@ -479,7 +692,13 @@ void main() {
       );
       await expectLater(
         client.info(),
-        throwsA(isA<LanBeamException>().having((e) => e.kind, 'kind', FailureKind.untrustedCertificate)),
+        throwsA(
+          isA<LanBeamException>().having(
+            (e) => e.kind,
+            'kind',
+            FailureKind.untrustedCertificate,
+          ),
+        ),
       );
       client.close();
     });
@@ -493,7 +712,12 @@ void main() {
         localInfo: () => phone.engine.localInfo,
         secret: trusted.secret,
       );
-      for (final evil in ['../evil.txt', '/etc/evil', 'a/../../evil', 'C:/evil.dll']) {
+      for (final evil in [
+        '../evil.txt',
+        '/etc/evil',
+        'a/../../evil',
+        'C:/evil.dll',
+      ]) {
         final m = TransferManifest(
           transferId: 'abcdefgh-evil',
           kind: TransferKind.files,
@@ -504,7 +728,11 @@ void main() {
         await client.ensureAuthenticated();
         final http = HttpClient()..badCertificateCallback = (_, _, _) => true;
         // Use a raw request so the client-side manifest validation is bypassed.
-        final nonceReq = await http.postUrl(Uri.parse('https://127.0.0.1:${pc.engine.server.port}/api/v1/transfers'));
+        final nonceReq = await http.postUrl(
+          Uri.parse(
+            'https://127.0.0.1:${pc.engine.server.port}/api/v1/transfers',
+          ),
+        );
         nonceReq.headers.contentType = ContentType.json;
         nonceReq.headers.set('Authorization', 'Bearer ${await _token(client)}');
         nonceReq.write(jsonEncode(json));
@@ -520,22 +748,36 @@ void main() {
     test('unpairing revokes access on both sides', () async {
       await phone.engine.unpair(pcId());
       expect(phone.engine.trustedDevices.isTrusted(pcId()), isFalse);
-      await waitUntil(() => !pc.engine.trustedDevices.isTrusted(phoneId()), reason: 'remote not revoked');
+      await waitUntil(
+        () => !pc.engine.trustedDevices.isTrusted(phoneId()),
+        reason: 'remote not revoked',
+      );
     });
   });
 
   test('PIN pairing end-to-end (direct IP probe + PIN)', () async {
     final laptop = await TestPeer.start('Laptop');
     try {
-      final info = await phone.engine.probe('127.0.0.1', laptop.engine.server.port);
+      final info = await phone.engine.probe(
+        '127.0.0.1',
+        laptop.engine.server.port,
+      );
       expect(info.name, 'Laptop');
       String? pin;
       final sub = laptop.engine.pairing.prompts.listen((prompt) {
-        if (prompt.runtimeType.toString() == 'PairingPinPrompt') pin = (prompt as dynamic).pin as String;
+        if (prompt.runtimeType.toString() == 'PairingPinPrompt')
+          pin = (prompt as dynamic).pin as String;
       });
-      final session = await phone.engine.startPinPairing('127.0.0.1', info.port, info.fingerprint);
+      final session = await phone.engine.startPinPairing(
+        '127.0.0.1',
+        info.port,
+        info.fingerprint,
+      );
       await waitUntil(() => pin != null);
-      await expectLater(session.submit('000000' == pin ? '111111' : '000000'), throwsA(isA<LanBeamException>()));
+      await expectLater(
+        session.submit('000000' == pin ? '111111' : '000000'),
+        throwsA(isA<LanBeamException>()),
+      );
       final trusted = await session.submit(pin!);
       expect(trusted.id, laptop.engine.identity.deviceId);
       expect(laptop.engine.trustedDevices.isTrusted(phoneId()), isTrue);
@@ -553,7 +795,11 @@ void main() {
     await pairPeers(phone, pc);
     final hashes = <String, String>{};
     for (var i = 0; i < 4; i++) {
-      hashes['m$i.bin'] = await writeRandomFile(p.join(src.path, 'm$i.bin'), Protocol.blockSize ~/ 2 + i * 1000000, seed: 40 + i);
+      hashes['m$i.bin'] = await writeRandomFile(
+        p.join(src.path, 'm$i.bin'),
+        Protocol.blockSize ~/ 2 + i * 1000000,
+        seed: 40 + i,
+      );
     }
     final t = await phone.engine.send(pcId(), [
       for (final n in hashes.keys) LocalPathSelection(p.join(src.path, n)),
@@ -569,10 +815,21 @@ void main() {
     final size = Protocol.blockSize;
     final file = p.join(src.path, 'speed.bin');
     await writeRandomFile(file, size);
-    final source = ThrottledSource(LocalFileSource(file), chunkDelay: const Duration(milliseconds: 20));
-    final OutgoingTransfer t = await phone.engine.sendScanned(pcId(), ScanResult([
-      OutgoingFile(id: 'f0', relativePath: 'speed.bin', source: source, size: size),
-    ], TransferKind.files));
+    final source = ThrottledSource(
+      LocalFileSource(file),
+      chunkDelay: const Duration(milliseconds: 20),
+    );
+    final OutgoingTransfer t = await phone.engine.sendScanned(
+      pcId(),
+      ScanResult([
+        OutgoingFile(
+          id: 'f0',
+          relativePath: 'speed.bin',
+          source: source,
+          size: size,
+        ),
+      ], TransferKind.files),
+    );
     await waitUntil(() => t.transferredBytes > 4 * Protocol.ioChunkSize);
     expect(t.bytesPerSecond, greaterThan(0));
     expect(t.eta, isNotNull);

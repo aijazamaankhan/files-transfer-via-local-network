@@ -30,7 +30,8 @@ Future<Map<String, Object?>> readJsonBody(
   int maxBytes = Protocol.maxJsonBodyBytes,
 }) async {
   final declared = request.contentLength;
-  if (declared > maxBytes) throw ApiError(ErrorCodes.badRequest, 'Body too large');
+  if (declared > maxBytes)
+    throw ApiError(ErrorCodes.badRequest, 'Body too large');
   final builder = BytesBuilder(copy: false);
   await for (final chunk in request) {
     builder.add(chunk);
@@ -47,7 +48,11 @@ Future<Map<String, Object?>> readJsonBody(
   }
 }
 
-Future<void> sendJson(HttpResponse response, Object? body, {int status = 200}) async {
+Future<void> sendJson(
+  HttpResponse response,
+  Object? body, {
+  int status = 200,
+}) async {
   response.statusCode = status;
   response.headers.contentType = ContentType.json;
   response.headers.set('Cache-Control', 'no-store');

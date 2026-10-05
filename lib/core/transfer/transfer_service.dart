@@ -129,7 +129,8 @@ class OutgoingTransfer extends TransferTask {
     if (status != TransferStatus.failed) return Future.value();
     error = null;
     for (final f in files.values) {
-      if (f.state == FileTransferState.failed) f.state = FileTransferState.queued;
+      if (f.state == FileTransferState.failed)
+        f.state = FileTransferState.queued;
     }
     _checksumRetries.clear();
     return start();
@@ -186,7 +187,9 @@ class OutgoingTransfer extends TransferTask {
         await _uploadAll();
         if (_cancelRequested) return;
 
-        final failed = files.values.where((f) => f.state == FileTransferState.failed).toList();
+        final failed = files.values
+            .where((f) => f.state == FileTransferState.failed)
+            .toList();
         await _bestEffort(() => client.command(id, 'finish'));
         await _closeEvents();
         if (failed.isNotEmpty) {
@@ -259,7 +262,9 @@ class OutgoingTransfer extends TransferTask {
 
   Future<void> _backoff(int attempt) async {
     await _closeEvents();
-    final delay = Duration(milliseconds: min(16000, 500 * pow(2, attempt).toInt()));
+    final delay = Duration(
+      milliseconds: min(16000, 500 * pow(2, attempt).toInt()),
+    );
     if (status != TransferStatus.paused) {
       setStatus(TransferStatus.pending, error: error);
     }
@@ -279,11 +284,15 @@ class OutgoingTransfer extends TransferTask {
     if (pausedRemotely && !_localPause) {
       // The receiver paused: poll in case the event channel is gone.
       while (!signal.isCompleted && pausedRemotely && !_cancelRequested) {
-        await Future.any([signal.future, Future<void>.delayed(const Duration(seconds: 5))]);
+        await Future.any([
+          signal.future,
+          Future<void>.delayed(const Duration(seconds: 5)),
+        ]);
         if (signal.isCompleted || !pausedRemotely) break;
         try {
           final s = await client.status(id);
-          if (s['paused'] != true && s['state'] != 'paused') pausedRemotely = false;
+          if (s['paused'] != true && s['state'] != 'paused')
+            pausedRemotely = false;
           if (s['state'] == 'cancelled') throw const _CancelledSignal();
         } on _CancelledSignal {
           rethrow;
@@ -298,13 +307,18 @@ class OutgoingTransfer extends TransferTask {
   void _markAllDone() {
     for (final f in files.values) {
       if (f.state != FileTransferState.skipped) {
-        setFileState(f.file.id, FileTransferState.done, transferred: f.file.size);
+        setFileState(
+          f.file.id,
+          FileTransferState.done,
+          transferred: f.file.size,
+        );
       }
     }
   }
 
   void _applyOffsets(Object? raw) {
-    if (raw is! Map) throw const LanBeamException(FailureKind.protocol, 'files');
+    if (raw is! Map)
+      throw const LanBeamException(FailureKind.protocol, 'files');
     for (final f in files.values) {
       final entry = raw[f.file.id];
       if (entry is! Map) continue;
@@ -315,7 +329,11 @@ class OutgoingTransfer extends TransferTask {
       final offset = (entry['offset'] as int?) ?? 0;
       _offsets[f.file.id] = offset;
       if (entry['state'] == 'done') {
-        setFileState(f.file.id, FileTransferState.done, transferred: f.file.size);
+        setFileState(
+          f.file.id,
+          FileTransferState.done,
+          transferred: f.file.size,
+        );
       } else if (f.state != FileTransferState.failed) {
         setFileState(f.file.id, FileTransferState.queued, transferred: offset);
       }
@@ -341,7 +359,9 @@ class OutgoingTransfer extends TransferTask {
         }
       } catch (_) {}
       if (DateTime.now().isAfter(deadline) && !completer.isCompleted) {
-        completer.completeError(PeerApiException(408, 'rejected', 'No response', const {}));
+        completer.completeError(
+          PeerApiException(408, 'rejected', 'No response', const {}),
+        );
       }
     });
     try {
@@ -394,7 +414,14 @@ class OutgoingTransfer extends TransferTask {
           if (msg['accepted'] == true) {
             c.complete({'state': 'accepted', 'files': msg['files']});
           } else {
-            c.completeError(PeerApiException(403, 'rejected', msg['reason'] as String?, const {}));
+            c.completeError(
+              PeerApiException(
+                403,
+                'rejected',
+                msg['reason'] as String?,
+                const {},
+              ),
+            );
           }
         }
       case 'paused':
@@ -429,7 +456,9 @@ class OutgoingTransfer extends TransferTask {
 
   Future<void> _uploadAll() async {
     final queue = files.values
-        .where((f) => !f.state.isFinished && f.state != FileTransferState.failed)
+        .where(
+          (f) => !f.state.isFinished && f.state != FileTransferState.failed,
+        )
         .map((f) => f.file.id)
         .toList();
     Object? fatal;
@@ -443,7 +472,11 @@ class OutgoingTransfer extends TransferTask {
         } on _CancelledSignal catch (e) {
           fatal ??= e;
         } on _FileFailure catch (e) {
-          setFileState(fileId, FileTransferState.failed, error: e.error.userMessage);
+          setFileState(
+            fileId,
+            FileTransferState.failed,
+            error: e.error.userMessage,
+          );
         } catch (e) {
           fatal ??= e;
           // Stop the other workers' uploads promptly; they will resume.
@@ -471,11 +504,13 @@ class OutgoingTransfer extends TransferTask {
       _checkInterrupt();
       final before = await _statOrFail(source);
       if (before.size != meta.size ||
-          (meta.modified != null && !before.sameAs(SourceStat(meta.size, meta.modified)))) {
+          (meta.modified != null &&
+              !before.sameAs(SourceStat(meta.size, meta.modified)))) {
         throw const _FileFailure(LanBeamException(FailureKind.fileChanged));
       }
       var offset = _offsets[fileId] ?? 0;
-      if (offset > meta.size || offset % Protocol.blockSize != 0 && offset != meta.size) {
+      if (offset > meta.size ||
+          offset % Protocol.blockSize != 0 && offset != meta.size) {
         offset = 0;
       }
       setFileState(fileId, FileTransferState.transferring, transferred: offset);
@@ -498,7 +533,13 @@ class OutgoingTransfer extends TransferTask {
         });
         UploadHandle? handle;
         try {
-          handle = await client.upload(id, fileId, offset, meta.size - offset, data);
+          handle = await client.upload(
+            id,
+            fileId,
+            offset,
+            meta.size - offset,
+            data,
+          );
           _inFlight.add(handle);
           await handle.done;
         } on UploadAborted {
@@ -509,7 +550,11 @@ class OutgoingTransfer extends TransferTask {
           hasher.abort();
           if (e.code == 'offset_mismatch' && e.body['offset'] is int) {
             _offsets[fileId] = e.body['offset'] as int;
-            setFileState(fileId, FileTransferState.queued, transferred: _offsets[fileId]);
+            setFileState(
+              fileId,
+              FileTransferState.queued,
+              transferred: _offsets[fileId],
+            );
             continue;
           }
           if (e.code == 'paused') {
@@ -541,11 +586,14 @@ class OutgoingTransfer extends TransferTask {
         return;
       } on PeerApiException catch (e) {
         if (e.code == 'checksum_mismatch') {
-          final n = _checksumRetries[fileId] = (_checksumRetries[fileId] ?? 0) + 1;
+          final n = _checksumRetries[fileId] =
+              (_checksumRetries[fileId] ?? 0) + 1;
           _blockCache.remove(fileId);
           _offsets[fileId] = 0;
           if (n > 2) {
-            throw const _FileFailure(LanBeamException(FailureKind.checksumMismatch));
+            throw const _FileFailure(
+              LanBeamException(FailureKind.checksumMismatch),
+            );
           }
           continue;
         }
@@ -557,7 +605,9 @@ class OutgoingTransfer extends TransferTask {
         rethrow;
       }
     }
-    throw const _FileFailure(LanBeamException(FailureKind.protocol, 'too many restarts'));
+    throw const _FileFailure(
+      LanBeamException(FailureKind.protocol, 'too many restarts'),
+    );
   }
 
   void _checkInterrupt() {
@@ -579,18 +629,25 @@ class OutgoingTransfer extends TransferTask {
   }
 
   /// Block digests for bytes `[0, offset)`, from cache or by re-reading.
-  Future<List<Digest>> _prefixDigests(String fileId, FileSource source, int offset) async {
+  Future<List<Digest>> _prefixDigests(
+    String fileId,
+    FileSource source,
+    int offset,
+  ) async {
     final blocks = offset ~/ Protocol.blockSize;
     if (blocks == 0) return const [];
     final cached = _blockCache[fileId];
-    if (cached != null && cached.length >= blocks) return cached.sublist(0, blocks);
+    if (cached != null && cached.length >= blocks)
+      return cached.sublist(0, blocks);
     // Re-hash locally (fast compared to the network); happens only when
     // resuming after an app restart.
     final hasher = checksums.createHasher();
     var read = 0;
     await for (final chunk in source.openRead(0)) {
       final take = min(chunk.length, offset - read);
-      await hasher.add(take == chunk.length ? chunk : Uint8List.sublistView(chunk, 0, take));
+      await hasher.add(
+        take == chunk.length ? chunk : Uint8List.sublistView(chunk, 0, take),
+      );
       read += take;
       if (read >= offset) break;
     }

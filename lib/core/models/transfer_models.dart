@@ -17,7 +17,8 @@ enum TransferStatus {
   bool get isFinal =>
       this == completed || this == cancelled || this == rejected;
 
-  bool get isRunning => this == pending || this == awaitingApproval || this == active;
+  bool get isRunning =>
+      this == pending || this == awaitingApproval || this == active;
 
   static TransferStatus parse(Object? v) => TransferStatus.values.firstWhere(
     (e) => e.name == v,

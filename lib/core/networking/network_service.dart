@@ -3,9 +3,25 @@ import 'dart:io';
 /// Local network helpers.
 abstract final class NetworkService {
   static const _virtualPrefixes = [
-    'docker', 'veth', 'br-', 'vmnet', 'vboxnet', 'virbr', 'utun', 'tun',
-    'tap', 'zt', 'tailscale', 'wg', 'awdl', 'llw', 'ipsec', 'rmnet',
-    'vethernet', 'hyper-v', 'loopback',
+    'docker',
+    'veth',
+    'br-',
+    'vmnet',
+    'vboxnet',
+    'virbr',
+    'utun',
+    'tun',
+    'tap',
+    'zt',
+    'tailscale',
+    'wg',
+    'awdl',
+    'llw',
+    'ipsec',
+    'rmnet',
+    'vethernet',
+    'hyper-v',
+    'loopback',
   ];
 
   static bool _isVirtual(String name) {
@@ -36,7 +52,12 @@ abstract final class NetworkService {
       var s = 0;
       if (_isVirtual(n)) s += 100;
       if (!i.addresses.any((a) => isPrivateIPv4(a.address))) s += 50;
-      if (n.startsWith('wl') || n.startsWith('wi-fi') || n.startsWith('en') || n.startsWith('eth') || n.startsWith('wlan')) s -= 10;
+      if (n.startsWith('wl') ||
+          n.startsWith('wi-fi') ||
+          n.startsWith('en') ||
+          n.startsWith('eth') ||
+          n.startsWith('wlan'))
+        s -= 10;
       return s;
     }
 
@@ -61,8 +82,12 @@ abstract final class NetworkService {
     if (s.isEmpty) return null;
     final v6 = RegExp(r'^\[([0-9a-fA-F:.]+)\](?::(\d+))?$').firstMatch(s);
     if (v6 != null) {
-      final port = v6.group(2) == null ? defaultPort : int.tryParse(v6.group(2)!);
-      return (port == null || port < 1 || port > 65535) ? null : (v6.group(1)!, port);
+      final port = v6.group(2) == null
+          ? defaultPort
+          : int.tryParse(v6.group(2)!);
+      return (port == null || port < 1 || port > 65535)
+          ? null
+          : (v6.group(1)!, port);
     }
     final parts = s.split(':');
     if (parts.length > 2) return (s, defaultPort); // bare IPv6

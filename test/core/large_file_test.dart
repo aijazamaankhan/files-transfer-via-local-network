@@ -28,13 +28,18 @@ void main() {
       final rssBefore = ProcessInfo.currentRss;
       var maxRss = rssBefore;
       final sw = Stopwatch()..start();
-      final t = await phone.engine.send(pc.engine.identity.deviceId, [LocalPathSelection(file)]);
+      final t = await phone.engine.send(pc.engine.identity.deviceId, [
+        LocalPathSelection(file),
+      ]);
       t.addListener(() {
         final rss = ProcessInfo.currentRss;
         if (rss > maxRss) maxRss = rss;
       });
-      await waitForStatus(t, (s) => s.isFinal || s == TransferStatus.failed,
-          timeout: const Duration(minutes: 15));
+      await waitForStatus(
+        t,
+        (s) => s.isFinal || s == TransferStatus.failed,
+        timeout: const Duration(minutes: 15),
+      );
       sw.stop();
       expect(t.status, TransferStatus.completed, reason: '${t.error}');
       expect(await sha256File(p.join(pc.downloads, 'big.iso')), hash);
@@ -42,7 +47,9 @@ void main() {
       // Both peers share this process; growth must stay far below file size.
       final growthMb = (maxRss - rssBefore) / 1024 / 1024;
       // ignore: avoid_print
-      print('1 GB in ${sw.elapsed} (${mbps.toStringAsFixed(1)} MB/s), RSS growth ${growthMb.toStringAsFixed(0)} MB');
+      print(
+        '1 GB in ${sw.elapsed} (${mbps.toStringAsFixed(1)} MB/s), RSS growth ${growthMb.toStringAsFixed(0)} MB',
+      );
       expect(growthMb, lessThan(300));
     } finally {
       await phone.stop();

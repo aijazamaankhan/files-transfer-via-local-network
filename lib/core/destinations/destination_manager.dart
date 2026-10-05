@@ -80,7 +80,11 @@ class DestinationManager {
     for (final f in manifest.files) {
       final root = overrideRoot ?? rootFor(f, settings);
       final target = PathSafety.resolveInside(root, f.path);
-      files[f.id] = PlannedFile(file: f, root: p.normalize(p.absolute(root)), target: target);
+      files[f.id] = PlannedFile(
+        file: f,
+        root: p.normalize(p.absolute(root)),
+        target: target,
+      );
     }
     return DestinationPlan(files);
   }
@@ -101,7 +105,8 @@ class DestinationManager {
     }
     for (final f in plan.files.values) {
       await PathSafety.ensureNoSymlinkEscape(f.root, f.target);
-      f.conflict = await FileSystemEntity.type(f.target, followLinks: false) !=
+      f.conflict =
+          await FileSystemEntity.type(f.target, followLinks: false) !=
           FileSystemEntityType.notFound;
     }
   }
@@ -111,7 +116,12 @@ class DestinationManager {
     try {
       final dir = Directory(root);
       await dir.create(recursive: true);
-      final probe = File(p.join(root, '.lanbeam-write-test-${DateTime.now().microsecondsSinceEpoch}'));
+      final probe = File(
+        p.join(
+          root,
+          '.lanbeam-write-test-${DateTime.now().microsecondsSinceEpoch}',
+        ),
+      );
       await probe.writeAsString('');
       await probe.delete();
     } on FileSystemException catch (e) {
@@ -149,8 +159,8 @@ class DestinationManager {
           existing != FileSystemEntityType.directory) {
         // Removing a link removes the link itself, never its target.
         await (existing == FileSystemEntityType.link
-                ? Link(target).delete()
-                : File(target).delete());
+            ? Link(target).delete()
+            : File(target).delete());
       } else {
         // skip is handled before upload; an unexpected new conflict, or a
         // directory in the way, falls back to renaming.

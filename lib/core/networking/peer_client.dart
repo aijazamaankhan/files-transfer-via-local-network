@@ -118,7 +118,14 @@ class PeerClient {
     };
     try {
       final req = await client
-          .getUrl(Uri(scheme: 'https', host: host, port: port, path: '${Protocol.apiBase}/info'))
+          .getUrl(
+            Uri(
+              scheme: 'https',
+              host: host,
+              port: port,
+              path: '${Protocol.apiBase}/info',
+            ),
+          )
           .timeout(timeout);
       final res = await req.close().timeout(timeout);
       final body = await utf8.decodeStream(res).timeout(timeout);
@@ -127,7 +134,10 @@ class PeerClient {
       }
       final info = DeviceInfo.fromJson((jsonDecode(body) as Map).cast());
       if (seen == null || info.fingerprint != seen) {
-        throw const LanBeamException(FailureKind.untrustedCertificate, 'fingerprint mismatch');
+        throw const LanBeamException(
+          FailureKind.untrustedCertificate,
+          'fingerprint mismatch',
+        );
       }
       return (info, seen!);
     } on FormatException catch (e) {
@@ -148,7 +158,11 @@ class PeerClient {
   );
 
   /// Opens a request against the first reachable host.
-  Future<HttpClientRequest> _open(String method, String path, [Map<String, String>? query]) async {
+  Future<HttpClientRequest> _open(
+    String method,
+    String path, [
+    Map<String, String>? query,
+  ]) async {
     final ordered = [?_activeHost, ...hosts.where((h) => h != _activeHost)];
     if (ordered.isEmpty) {
       throw const LanBeamException(FailureKind.deviceUnreachable, 'no address');
@@ -156,7 +170,9 @@ class PeerClient {
     Object? lastError;
     for (final host in ordered) {
       try {
-        final req = await _http.openUrl(method, _uri(host, path, query)).timeout(connectTimeout + const Duration(seconds: 1));
+        final req = await _http
+            .openUrl(method, _uri(host, path, query))
+            .timeout(connectTimeout + const Duration(seconds: 1));
         _activeHost = host;
         return req;
       } catch (e) {
@@ -164,7 +180,8 @@ class PeerClient {
         if (e is HandshakeException) break; // wrong identity: don't try others
       }
     }
-    if (_activeHost != null && !ordered.contains(_activeHost)) _activeHost = null;
+    if (_activeHost != null && !ordered.contains(_activeHost))
+      _activeHost = null;
     throw classifyError(lastError!);
   }
 
@@ -192,7 +209,8 @@ class PeerClient {
       if (auth) await ensureAuthenticated();
       try {
         final req = await _open(method, path);
-        if (auth) req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_token');
+        if (auth)
+          req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_token');
         if (body != null) {
           final bytes = utf8.encode(jsonEncode(body));
           req.headers.contentType = ContentType.json;
@@ -233,42 +251,66 @@ class PeerClient {
     if (_token != null && DateTime.now().isBefore(_tokenExpiry)) {
       return Future.value();
     }
-    return _authInFlight ??= _authenticate().whenComplete(() => _authInFlight = null);
+    return _authInFlight ??= _authenticate().whenComplete(
+      () => _authInFlight = null,
+    );
   }
 
   Future<void> _authenticate() async {
     final s = secret;
-    if (s == null) throw const LanBeamException(FailureKind.unauthorized, 'not paired');
+    if (s == null)
+      throw const LanBeamException(FailureKind.unauthorized, 'not paired');
     final me = localInfo();
-    final challenge = await _json('POST', '/auth/challenge', body: {'deviceId': me.id}, auth: false);
+    final challenge = await _json(
+      'POST',
+      '/auth/challenge',
+      body: {'deviceId': me.id},
+      auth: false,
+    );
     final nonce = challenge['nonce'] as String;
     final serverId = await _serverId();
     try {
-      final session = await _json('POST', '/auth/session', auth: false, body: {
-        'deviceId': me.id,
-        'nonce': nonce,
-        'proof': AuthProofs.client(s, nonce, me.id, serverId),
-      });
+      final session = await _json(
+        'POST',
+        '/auth/session',
+        auth: false,
+        body: {
+          'deviceId': me.id,
+          'nonce': nonce,
+          'proof': AuthProofs.client(s, nonce, me.id, serverId),
+        },
+      );
       final expected = AuthProofs.server(s, nonce, me.id, serverId);
-      if (!constantTimeEquals(expected, session['serverProof'] as String? ?? '')) {
-        throw const LanBeamException(FailureKind.untrustedCertificate, 'server proof');
+      if (!constantTimeEquals(
+        expected,
+        session['serverProof'] as String? ?? '',
+      )) {
+        throw const LanBeamException(
+          FailureKind.untrustedCertificate,
+          'server proof',
+        );
       }
       _token = session['token'] as String;
       final ttl = (session['expiresIn'] as int?) ?? 3600;
       _tokenExpiry = DateTime.now().add(Duration(seconds: ttl - 60));
     } on PeerApiException catch (e) {
-      if (e.status == 401) throw const LanBeamException(FailureKind.unauthorized);
+      if (e.status == 401)
+        throw const LanBeamException(FailureKind.unauthorized);
       throw e.toLanBeam();
     }
   }
 
   String? _serverIdCache;
-  Future<String> _serverId() async =>
-      _serverIdCache ??= (await info()).id;
+  Future<String> _serverId() async => _serverIdCache ??= (await info()).id;
 
   /// Fetches the peer's public info (pinned connection).
   Future<DeviceInfo> info() async {
-    final json = await _json('GET', '/info', auth: false, timeout: const Duration(seconds: 8));
+    final json = await _json(
+      'GET',
+      '/info',
+      auth: false,
+      timeout: const Duration(seconds: 8),
+    );
     final i = DeviceInfo.fromJson(json);
     if (i.fingerprint != expectedFingerprint) {
       throw const LanBeamException(FailureKind.untrustedCertificate);
@@ -280,14 +322,17 @@ class PeerClient {
   // ---------------------------------------------------------------------
   // Pairing
 
-  Future<PairingResult> pairWithToken(String token) => _pair({
-    'method': 'qr',
-    'token': token,
-  });
+  Future<PairingResult> pairWithToken(String token) =>
+      _pair({'method': 'qr', 'token': token});
 
   /// Asks the peer to display a PIN; returns the nonce for [pairWithPin].
   Future<String> requestPin() async {
-    final json = await _json('POST', '/pair/pin', auth: false, body: {'device': localInfo().toJson()});
+    final json = await _json(
+      'POST',
+      '/pair/pin',
+      auth: false,
+      body: {'device': localInfo().toJson()},
+    );
     return json['nonce'] as String;
   }
 
@@ -296,7 +341,13 @@ class PeerClient {
     return _pair({
       'method': 'pin',
       'nonce': nonce,
-      'proof': AuthProofs.pin(pin, nonce, me.id, me.fingerprint, expectedFingerprint),
+      'proof': AuthProofs.pin(
+        pin,
+        nonce,
+        me.id,
+        me.fingerprint,
+        expectedFingerprint,
+      ),
     });
   }
 
@@ -314,7 +365,8 @@ class PeerClient {
         throw const LanBeamException(FailureKind.untrustedCertificate);
       }
       final s = base64.decode(json['secret'] as String);
-      if (s.length != 32) throw const LanBeamException(FailureKind.protocol, 'secret');
+      if (s.length != 32)
+        throw const LanBeamException(FailureKind.protocol, 'secret');
       secret = s;
       return PairingResult(device, s);
     } on PeerApiException catch (e) {
@@ -354,9 +406,16 @@ class PeerClient {
   Future<Map<String, Object?>> command(String transferId, String command) =>
       _json('POST', '/transfers/$transferId/$command', body: const {});
 
-  Future<Map<String, Object?>> complete(String transferId, String fileId, String digest) =>
-      _json('POST', '/transfers/$transferId/files/$fileId/complete',
-          body: {'digest': digest}, timeout: const Duration(minutes: 2));
+  Future<Map<String, Object?>> complete(
+    String transferId,
+    String fileId,
+    String digest,
+  ) => _json(
+    'POST',
+    '/transfers/$transferId/files/$fileId/complete',
+    body: {'digest': digest},
+    timeout: const Duration(minutes: 2),
+  );
 
   /// Opens the transfer event WebSocket.
   Future<WebSocket> events(String transferId) async {
@@ -390,7 +449,9 @@ class PeerClient {
     Stream<List<int>> data,
   ) async {
     await ensureAuthenticated();
-    final req = await _open('PUT', '/transfers/$transferId/files/$fileId', {'offset': '$offset'});
+    final req = await _open('PUT', '/transfers/$transferId/files/$fileId', {
+      'offset': '$offset',
+    });
     req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_token');
     req.headers.contentType = ContentType.binary;
     req.contentLength = length;
@@ -419,8 +480,12 @@ class PeerClient {
           final res = await req.done.timeout(const Duration(seconds: 2));
           final json = await _decode(res);
           if (res.statusCode != 200) {
-            throw PeerApiException(res.statusCode,
-                (json['error'] as String?) ?? 'http_${res.statusCode}', json['message'] as String?, json);
+            throw PeerApiException(
+              res.statusCode,
+              (json['error'] as String?) ?? 'http_${res.statusCode}',
+              json['message'] as String?,
+              json,
+            );
           }
         } on PeerApiException {
           rethrow;

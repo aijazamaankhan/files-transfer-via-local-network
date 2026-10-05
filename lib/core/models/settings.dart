@@ -7,10 +7,8 @@ enum ConflictPolicy {
   replace,
   skip;
 
-  static ConflictPolicy parse(Object? v) => ConflictPolicy.values.firstWhere(
-    (e) => e.name == v,
-    orElse: () => ask,
-  );
+  static ConflictPolicy parse(Object? v) =>
+      ConflictPolicy.values.firstWhere((e) => e.name == v, orElse: () => ask);
 }
 
 /// User preferences. Immutable; update with [copyWith].
@@ -29,7 +27,6 @@ class AppSettings {
     this.requireApprovalForQr = true,
     this.notificationsEnabled = true,
     this.launchAtStartup = false,
-    this.startMinimized = false,
     this.maxConcurrentFiles = 3,
     this.bluetoothEnabled = false,
     this.themeMode = 'system',
@@ -53,7 +50,6 @@ class AppSettings {
   final bool requireApprovalForQr;
   final bool notificationsEnabled;
   final bool launchAtStartup;
-  final bool startMinimized;
   final int maxConcurrentFiles;
   final bool bluetoothEnabled;
   final String themeMode;
@@ -72,7 +68,6 @@ class AppSettings {
     bool? requireApprovalForQr,
     bool? notificationsEnabled,
     bool? launchAtStartup,
-    bool? startMinimized,
     int? maxConcurrentFiles,
     bool? bluetoothEnabled,
     String? themeMode,
@@ -90,7 +85,6 @@ class AppSettings {
     requireApprovalForQr: requireApprovalForQr ?? this.requireApprovalForQr,
     notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     launchAtStartup: launchAtStartup ?? this.launchAtStartup,
-    startMinimized: startMinimized ?? this.startMinimized,
     maxConcurrentFiles: maxConcurrentFiles ?? this.maxConcurrentFiles,
     bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
     themeMode: themeMode ?? this.themeMode,
@@ -112,7 +106,6 @@ class AppSettings {
     'requireApprovalForQr': requireApprovalForQr,
     'notificationsEnabled': notificationsEnabled,
     'launchAtStartup': launchAtStartup,
-    'startMinimized': startMinimized,
     'maxConcurrentFiles': maxConcurrentFiles,
     'bluetoothEnabled': bluetoothEnabled,
     'themeMode': themeMode,
@@ -137,19 +130,33 @@ class AppSettings {
     return AppSettings(
       deviceName: pick('deviceName', defaults.deviceName),
       downloadDirectory: pick('downloadDirectory', defaults.downloadDirectory),
-      useDestinationRules: pick('useDestinationRules', defaults.useDestinationRules),
+      useDestinationRules: pick(
+        'useDestinationRules',
+        defaults.useDestinationRules,
+      ),
       destinationRules: rules.isEmpty ? defaults.destinationRules : rules,
       askWhereToSave: pick('askWhereToSave', defaults.askWhereToSave),
       autoAcceptTrusted: pick('autoAcceptTrusted', defaults.autoAcceptTrusted),
       conflictPolicy: ConflictPolicy.parse(j['conflictPolicy']),
       servicePort: pick('servicePort', defaults.servicePort).clamp(1024, 65535),
       discoveryEnabled: pick('discoveryEnabled', defaults.discoveryEnabled),
-      qrTokenTtlMinutes: pick('qrTokenTtlMinutes', defaults.qrTokenTtlMinutes).clamp(1, 30),
-      requireApprovalForQr: pick('requireApprovalForQr', defaults.requireApprovalForQr),
-      notificationsEnabled: pick('notificationsEnabled', defaults.notificationsEnabled),
+      qrTokenTtlMinutes: pick(
+        'qrTokenTtlMinutes',
+        defaults.qrTokenTtlMinutes,
+      ).clamp(1, 30),
+      requireApprovalForQr: pick(
+        'requireApprovalForQr',
+        defaults.requireApprovalForQr,
+      ),
+      notificationsEnabled: pick(
+        'notificationsEnabled',
+        defaults.notificationsEnabled,
+      ),
       launchAtStartup: pick('launchAtStartup', defaults.launchAtStartup),
-      startMinimized: pick('startMinimized', defaults.startMinimized),
-      maxConcurrentFiles: pick('maxConcurrentFiles', defaults.maxConcurrentFiles).clamp(1, 8),
+      maxConcurrentFiles: pick(
+        'maxConcurrentFiles',
+        defaults.maxConcurrentFiles,
+      ).clamp(1, 8),
       bluetoothEnabled: pick('bluetoothEnabled', defaults.bluetoothEnabled),
       themeMode: pick('themeMode', defaults.themeMode),
     );

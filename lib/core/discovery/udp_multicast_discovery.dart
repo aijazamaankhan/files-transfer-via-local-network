@@ -24,11 +24,14 @@ abstract final class DiscoveryPacket {
     if (data.length > 2048) return null;
     try {
       final json = jsonDecode(utf8.decode(data));
-      if (json is! Map || json['proto'] != Protocol.name || json['v'] != Protocol.version) {
+      if (json is! Map ||
+          json['proto'] != Protocol.name ||
+          json['v'] != Protocol.version) {
         return null;
       }
       final type = json['type'];
-      if (type is! String || !const {'announce', 'query', 'bye'}.contains(type)) {
+      if (type is! String ||
+          !const {'announce', 'query', 'bye'}.contains(type)) {
         return null;
       }
       return (type, DeviceInfo.fromJson(json.cast()));
@@ -71,7 +74,9 @@ class UdpMulticastDiscovery extends DeviceDiscoveryService {
 
   @override
   List<DiscoveredDevice> get devices => _devices.values.toList()
-    ..sort((a, b) => a.info.name.toLowerCase().compareTo(b.info.name.toLowerCase()));
+    ..sort(
+      (a, b) => a.info.name.toLowerCase().compareTo(b.info.name.toLowerCase()),
+    );
 
   @override
   bool get isRunning => _listener != null;
@@ -121,11 +126,13 @@ class UdpMulticastDiscovery extends DeviceDiscoveryService {
         s.broadcastEnabled = true;
         s.multicastLoopback = true;
         try {
-          s.setRawOption(RawSocketOption(
-            RawSocketOption.levelIPv4,
-            RawSocketOption.IPv4MulticastInterface,
-            addr.rawAddress,
-          ));
+          s.setRawOption(
+            RawSocketOption(
+              RawSocketOption.levelIPv4,
+              RawSocketOption.IPv4MulticastInterface,
+              addr.rawAddress,
+            ),
+          );
         } catch (_) {}
         s.listen((e) {
           if (e == RawSocketEvent.read) {
@@ -173,7 +180,10 @@ class UdpMulticastDiscovery extends DeviceDiscoveryService {
     final data = DiscoveryPacket.encode(type, localInfo());
     final targets = to != null
         ? [to]
-        : [InternetAddress(group), if (enableBroadcast) InternetAddress('255.255.255.255')];
+        : [
+            InternetAddress(group),
+            if (enableBroadcast) InternetAddress('255.255.255.255'),
+          ];
     final sockets = _senders.isNotEmpty ? _senders : [?_listener];
     for (final s in sockets) {
       for (final t in targets) {
@@ -209,10 +219,15 @@ class UdpMulticastDiscovery extends DeviceDiscoveryService {
     final existing = _devices[info.id];
     final now = DateTime.now();
     if (existing == null) {
-      _devices[info.id] = DiscoveredDevice(info: info, address: address, lastSeen: now);
+      _devices[info.id] = DiscoveredDevice(
+        info: info,
+        address: address,
+        lastSeen: now,
+      );
       notifyListeners();
     } else {
-      final changed = existing.address != address ||
+      final changed =
+          existing.address != address ||
           existing.info.name != info.name ||
           existing.info.port != info.port;
       existing

@@ -53,9 +53,12 @@ class PartialFile {
     final done = Completer<void>();
     _lock = done.future;
     return previous
-        .timeout(const Duration(seconds: 30), onTimeout: () {
-          throw const UploadInterrupted('previous upload still running');
-        })
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw const UploadInterrupted('previous upload still running');
+          },
+        )
         .then((_) => body())
         .whenComplete(done.complete);
   }
@@ -115,7 +118,9 @@ class PartialFile {
     int offset, {
     void Function(int bytes)? onBytes,
     String? Function()? shouldStop,
-  }) => _locked(() => _write(body, offset, onBytes: onBytes, shouldStop: shouldStop));
+  }) => _locked(
+    () => _write(body, offset, onBytes: onBytes, shouldStop: shouldStop),
+  );
 
   Future<int> _write(
     Stream<List<int>> body,

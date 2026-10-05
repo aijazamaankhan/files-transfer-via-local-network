@@ -30,9 +30,7 @@ enum FailureKind {
     'drive disconnected.',
   ),
   diskFull('Not enough storage space on the receiving device.'),
-  fileChanged(
-    'The file was modified while it was being sent. Send it again.',
-  ),
+  fileChanged('The file was modified while it was being sent. Send it again.'),
   fileMissing('The file no longer exists.'),
   checksumMismatch('The file was corrupted in transit and will be re-sent.'),
   pairingExpired('The pairing code has expired. Generate a new one.'),
@@ -70,7 +68,11 @@ class LanBeamException implements Exception {
 }
 
 // errno values for disk-full and permission errors across platforms.
-const _enospc = {28, 112 /* ERROR_DISK_FULL */, 39 /* ERROR_HANDLE_DISK_FULL */};
+const _enospc = {
+  28,
+  112 /* ERROR_DISK_FULL */,
+  39 /* ERROR_HANDLE_DISK_FULL */,
+};
 const _eacces = {13, 1 /* EPERM */, 5 /* ERROR_ACCESS_DENIED */};
 const _enoent = {2, 3 /* ERROR_PATH_NOT_FOUND */};
 const _econnrefused = {111, 61, 10061};

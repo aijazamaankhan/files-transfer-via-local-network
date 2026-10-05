@@ -39,8 +39,9 @@ class TrustedDeviceStore extends Notifier {
   final JsonFileStore _store;
   final Map<String, TrustedDevice> _devices = {};
 
-  List<TrustedDevice> get all => _devices.values.toList()
-    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  List<TrustedDevice> get all =>
+      _devices.values.toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   TrustedDevice? get(String id) => _devices[id];
 
@@ -119,7 +120,8 @@ class TransferHistoryService extends Notifier {
   Future<void> record(HistoryRecord r) async {
     _records.removeWhere((e) => e.transferId == r.transferId);
     _records.insert(0, r);
-    if (_records.length > maxRecords) _records.removeRange(maxRecords, _records.length);
+    if (_records.length > maxRecords)
+      _records.removeRange(maxRecords, _records.length);
     notifyListeners();
     await _save();
   }
@@ -136,5 +138,6 @@ class TransferHistoryService extends Notifier {
     await _save();
   }
 
-  Future<void> _save() => _store.write(_records.map((r) => r.toJson()).toList());
+  Future<void> _save() =>
+      _store.write(_records.map((r) => r.toJson()).toList());
 }

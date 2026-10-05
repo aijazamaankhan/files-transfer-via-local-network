@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "LanBeam (pick device in status bar)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "LanBeam (profile)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "LanBeam (release)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "release"
+    },
+    {
+      "name": "Core tests",
+      "request": "launch",
+      "type": "dart",
+      "program": "test/core/"
+    },
+    {
+      "name": "Headless CLI peer (receive)",
+      "request": "launch",
+      "type": "dart",
+      "program": "tool/lanbeam_cli.dart",
+      "args": ["--data", "${workspaceFolder}/.cli-peer", "--name", "CLI Peer", "--port", "45900", "qr"],
+      "console": "terminal"
+    }
+  ]
+}

@@ -42,14 +42,13 @@ class LanServer {
 
   /// Binds to [preferredPort] on all interfaces, falling back to an ephemeral
   /// port when it is taken. Returns the bound port.
-  Future<int> start({int preferredPort = Protocol.defaultServicePort, InternetAddress? address}) async {
+  Future<int> start({
+    int preferredPort = Protocol.defaultServicePort,
+    InternetAddress? address,
+  }) async {
     final context = identity.serverContext();
-    Future<HttpServer> bind(InternetAddress a, int port) => HttpServer.bindSecure(
-      a,
-      port,
-      context,
-      v6Only: false,
-    );
+    Future<HttpServer> bind(InternetAddress a, int port) =>
+        HttpServer.bindSecure(a, port, context, v6Only: false);
     HttpServer server;
     final candidates = address != null
         ? [address]
@@ -70,10 +69,7 @@ class LanServer {
     server.idleTimeout = const Duration(seconds: 60);
     server.autoCompress = false;
     _server = server;
-    server.listen(
-      (req) => unawaited(_handle(req)),
-      onError: (_) {},
-    );
+    server.listen((req) => unawaited(_handle(req)), onError: (_) {});
     return server.port;
   }
 
@@ -99,12 +95,16 @@ class LanServer {
     } on LanBeamException catch (e) {
       final code = switch (e.kind) {
         FailureKind.diskFull => ErrorCodes.diskFull,
-        FailureKind.permissionDenied || FailureKind.destinationUnavailable => ErrorCodes.forbidden,
+        FailureKind.permissionDenied ||
+        FailureKind.destinationUnavailable => ErrorCodes.forbidden,
         _ => ErrorCodes.internal,
       };
       await sendError(req.response, ApiError(code, e.userMessage));
     } catch (e) {
-      await sendError(req.response, ApiError(ErrorCodes.internal, 'Internal error'));
+      await sendError(
+        req.response,
+        ApiError(ErrorCodes.internal, 'Internal error'),
+      );
     }
   }
 
@@ -131,7 +131,10 @@ class LanServer {
       final body = await readJsonBody(req);
       final device = _deviceFrom(body);
       final r = pairing.startPinSession(device, remote);
-      return sendJson(req.response, {'nonce': r.nonce, 'expiresIn': r.expiresIn.inSeconds});
+      return sendJson(req.response, {
+        'nonce': r.nonce,
+        'expiresIn': r.expiresIn.inSeconds,
+      });
     }
     if (path case ['pair', 'request'] when method == 'POST') {
       final body = await readJsonBody(req);
@@ -162,7 +165,12 @@ class LanServer {
       if (id is! String || nonce is! String || proof is! String) {
         throw ApiError(ErrorCodes.badRequest);
       }
-      final grant = auth.createSession(deviceId: id, nonce: nonce, proof: proof, remote: remote);
+      final grant = auth.createSession(
+        deviceId: id,
+        nonce: nonce,
+        proof: proof,
+        remote: remote,
+      );
       onPeerSeen?.call(id, remote);
       return sendJson(req.response, {
         'token': grant.token,
@@ -185,7 +193,10 @@ class LanServer {
         return sendJson(req.response, {'status': 'ok'});
 
       case ['transfers'] when method == 'POST':
-        final body = await readJsonBody(req, maxBytes: Protocol.maxManifestBytes);
+        final body = await readJsonBody(
+          req,
+          maxBytes: Protocol.maxManifestBytes,
+        );
         final result = await receiver.handleOffer(deviceId, body);
         return sendJson(req.response, result.body, status: result.status);
 
@@ -204,15 +215,28 @@ class LanServer {
 
       case ['transfers', final id, 'files', final fileId] when method == 'PUT':
         final offset = int.tryParse(req.uri.queryParameters['offset'] ?? '');
-        if (offset == null || offset < 0) throw ApiError(ErrorCodes.badRequest, 'offset');
-        final received = await receiver.handleUpload(deviceId, id, fileId, offset, req);
+        if (offset == null || offset < 0)
+          throw ApiError(ErrorCodes.badRequest, 'offset');
+        final received = await receiver.handleUpload(
+          deviceId,
+          id,
+          fileId,
+          offset,
+          req,
+        );
         return sendJson(req.response, {'received': received});
 
-      case ['transfers', final id, 'files', final fileId, 'complete'] when method == 'POST':
+      case ['transfers', final id, 'files', final fileId, 'complete']
+          when method == 'POST':
         final body = await readJsonBody(req);
         final digest = body['digest'];
         if (digest is! String) throw ApiError(ErrorCodes.badRequest, 'digest');
-        final name = await receiver.handleComplete(deviceId, id, fileId, digest);
+        final name = await receiver.handleComplete(
+          deviceId,
+          id,
+          fileId,
+          digest,
+        );
         return sendJson(req.response, {'state': 'verified', 'name': name});
 
       case ['transfers', final id, final command]
@@ -220,7 +244,10 @@ class LanServer {
               const {'pause', 'resume', 'cancel', 'finish'}.contains(command):
         await _drain(req);
         await receiver.handleCommand(deviceId, id, command);
-        return sendJson(req.response, receiver.statusOf(deviceId, id, allowFinished: true));
+        return sendJson(
+          req.response,
+          receiver.statusOf(deviceId, id, allowFinished: true),
+        );
     }
     throw ApiError(ErrorCodes.notFound);
   }
