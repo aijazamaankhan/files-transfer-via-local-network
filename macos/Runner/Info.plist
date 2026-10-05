@@ -28,5 +28,15 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>LanBeam finds your devices and transfers files directly over your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_lanbeam._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is used to scan pairing QR codes.</string>
+	<key>LSFileQuarantineEnabled</key>
+	<true/>
 </dict>
 </plist>
