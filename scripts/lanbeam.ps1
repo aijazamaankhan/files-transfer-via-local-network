@@ -5,6 +5,8 @@
     .\run.bat                 interactive menu
     .\run.bat windows         update + run the desktop app on this PC
     .\run.bat android         update + run on the USB-connected Android phone
+    .\run.bat emulator        update + start the Android emulator and run there
+    .\run.bat install-apk     build the APK and install it on the running emulator/phone
     .\run.bat build-windows   build the Windows app into dist\LanBeam-windows
     .\run.bat build-apk       build dist\LanBeam.apk (and install it if a phone is connected)
     .\run.bat all             build both
@@ -140,6 +142,65 @@ function Get-AndroidDevice {
   return @($devices | Where-Object { $_.targetPlatform -like 'android*' -and $_.isSupported }) | Select-Object -First 1
 }
 
+function Get-EmulatorIds {
+  # "flutter emulators" prints lines like: Pixel_8_API_35 • Pixel 8 API 35 • Google • android
+  $lines = & flutter emulators 2>$null
+  $ids = @()
+  foreach ($line in $lines) {
+    $parts = $line -split '\s[\u2022|]\s'
+    if ($parts.Count -ge 4 -and $parts[3].Trim() -eq 'android') { $ids += $parts[0].Trim() }
+  }
+  return $ids
+}
+
+function Wait-AndroidDevice([int]$Seconds) {
+  $deadline = (Get-Date).AddSeconds($Seconds)
+  while ((Get-Date) -lt $deadline) {
+    $d = Get-AndroidDevice
+    if ($null -ne $d) { return $d }
+    Start-Sleep -Seconds 3
+    Write-Host '.' -NoNewline
+  }
+  Write-Host ''
+  return $null
+}
+
+function Start-AndroidEmulator {
+  # Reuse a running emulator or connected phone.
+  $device = Get-AndroidDevice
+  if ($null -ne $device) { Ok "Using $($device.name)"; return $device }
+
+  $ids = @(Get-EmulatorIds)
+  if ($ids.Count -eq 0) {
+    Warn 'No Android emulator exists yet; trying to create one.'
+    & flutter emulators --create --name LanBeam_Emulator | Out-Host
+    $ids = @(Get-EmulatorIds)
+  }
+  if ($ids.Count -eq 0) {
+    Warn 'Could not create an emulator automatically.'
+    Write-Host '      Open Android Studio > More Actions > Virtual Device Manager > Create device,'
+    Write-Host '      pick any phone (e.g. Pixel 8), download a system image, Finish. Then run this again.'
+    exit 1
+  }
+  Info "Starting emulator $($ids[0]) (the first boot can take a few minutes)"
+  & flutter emulators --launch $ids[0] | Out-Host
+  $device = Wait-AndroidDevice 300
+  if ($null -eq $device) { Fail 'The emulator did not finish booting. Start it from Android Studio and try again.' }
+  Ok "Emulator ready: $($device.name)"
+  return $device
+}
+
+function Start-Emulator {
+  $device = Start-AndroidEmulator
+  Info "Starting LanBeam on $($device.name)"
+  Invoke-Flutter run -d $device.id
+}
+
+function Install-Apk {
+  Start-AndroidEmulator | Out-Null
+  Build-Apk
+}
+
 function Show-PhoneHelp {
   Warn 'No Android phone found.'
   Write-Host '      1. Run "flutter doctor" - "Android toolchain" must be green (install Android Studio).'
@@ -185,7 +246,8 @@ function Build-Apk {
     Invoke-Flutter install -d $device.id --release
     Ok 'Installed - open LanBeam on the phone.'
   } else {
-    Write-Host '      Copy dist\LanBeam.apk to your phone and open it to install, or connect the phone and run "run.bat build-apk" again.'
+    Write-Host '      Copy dist\LanBeam.apk to your phone and open it to install, drag it onto a running'
+    Write-Host '      emulator window, or use option 6 to start the emulator and install automatically.'
   }
 }
 
@@ -200,22 +262,26 @@ function Show-Menu {
   Write-Host '  -------'
   Write-Host '  1  Run on this PC (Windows)'
   Write-Host '  2  Run on my Android phone (USB)'
-  Write-Host '  3  Build Windows app       -> dist\LanBeam-windows'
-  Write-Host '  4  Build Android APK       -> dist\LanBeam.apk (installs if phone connected)'
-  Write-Host '  5  Build both'
-  Write-Host '  6  Run tests'
-  Write-Host '  7  Check my setup (flutter doctor)'
+  Write-Host '  3  Run on Android emulator (starts it if needed)'
+  Write-Host '  4  Build Windows app       -> dist\LanBeam-windows'
+  Write-Host '  5  Build Android APK       -> dist\LanBeam.apk (installs if phone/emulator running)'
+  Write-Host '  6  Install APK on emulator (starts it, builds, installs)'
+  Write-Host '  7  Build both'
+  Write-Host '  8  Run tests'
+  Write-Host '  9  Check my setup (flutter doctor)'
   Write-Host ''
-  $choice = Read-Host '  Choose 1-7 (Enter = 1)'
+  $choice = Read-Host '  Choose 1-9 (Enter = 1)'
   switch ($choice) {
     '' { return 'windows' }
     '1' { return 'windows' }
     '2' { return 'android' }
-    '3' { return 'build-windows' }
-    '4' { return 'build-apk' }
-    '5' { return 'all' }
-    '6' { return 'test' }
-    '7' { return 'doctor' }
+    '3' { return 'emulator' }
+    '4' { return 'build-windows' }
+    '5' { return 'build-apk' }
+    '6' { return 'install-apk' }
+    '7' { return 'all' }
+    '8' { return 'test' }
+    '9' { return 'doctor' }
     default { Fail "Unknown choice '$choice'." }
   }
 }
@@ -224,7 +290,7 @@ function Show-Menu {
 
 if ($Action -eq '') { $Action = Show-Menu }
 $Action = $Action.ToLowerInvariant()
-$known = @('windows', 'android', 'build-windows', 'build-apk', 'all', 'test', 'doctor')
+$known = @('windows', 'android', 'emulator', 'build-windows', 'build-apk', 'install-apk', 'all', 'test', 'doctor')
 if ($known -notcontains $Action) { Fail "Unknown action '$Action'. Use one of: $($known -join ', ')" }
 
 Test-Toolchain
@@ -235,6 +301,8 @@ Update-Dependencies
 switch ($Action) {
   'windows' { Start-Windows }
   'android' { Start-Android }
+  'emulator' { Start-Emulator }
+  'install-apk' { Install-Apk }
   'build-windows' { Build-Windows }
   'build-apk' { Build-Apk }
   'all' { Build-Windows; Build-Apk }

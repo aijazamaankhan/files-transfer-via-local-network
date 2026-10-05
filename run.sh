@@ -4,6 +4,8 @@
 #   ./run.sh               interactive menu
 #   ./run.sh desktop       update + run on this computer (macOS or Linux)
 #   ./run.sh android       update + run on the USB-connected Android phone
+#   ./run.sh emulator      update + start the Android emulator and run there
+#   ./run.sh install-apk   build the APK and install it on the emulator/phone
 #   ./run.sh ios           update + run on a connected iPhone / simulator (macOS)
 #   ./run.sh build         build the desktop app into dist/
 #   ./run.sh build-apk     build dist/LanBeam.apk (installs if a phone is connected)
@@ -81,6 +83,35 @@ device_id() { # $1 = platform prefix (android / ios)
     head -n1 | sed -E 's/"id":"([^"]*)".*/\1/'
 }
 
+emulator_ids() {
+  flutter emulators 2>/dev/null | awk -F '•' 'NF>=4 { gsub(/^ +| +$/, "", $1); gsub(/^ +| +$/, "", $4); if ($4=="android") print $1 }'
+}
+
+start_emulator() { # prints nothing; sets EMU_ID
+  EMU_ID="$(device_id android)"
+  if [ -n "$EMU_ID" ]; then ok "Using $EMU_ID"; return; fi
+  local ids; ids="$(emulator_ids)"
+  if [ -z "$ids" ]; then
+    warn "No Android emulator exists yet; trying to create one."
+    flutter emulators --create --name LanBeam_Emulator || true
+    ids="$(emulator_ids)"
+  fi
+  if [ -z "$ids" ]; then
+    warn "Could not create an emulator automatically."
+    echo "      Android Studio > More Actions > Virtual Device Manager > Create device, then run this again."
+    exit 1
+  fi
+  local first; first="$(echo "$ids" | head -n1)"
+  info "Starting emulator $first (first boot can take a few minutes)"
+  flutter emulators --launch "$first"
+  for _ in $(seq 1 100); do
+    EMU_ID="$(device_id android)"; [ -n "$EMU_ID" ] && break; sleep 3; printf '.'
+  done
+  echo
+  [ -n "$EMU_ID" ] || fail "The emulator did not finish booting."
+  ok "Emulator ready: $EMU_ID"
+}
+
 phone_help() {
   warn "No Android phone found."
   echo "      1. 'flutter doctor' must show a green Android toolchain (install Android Studio)."
@@ -117,15 +148,17 @@ if [ -z "$action" ]; then
   echo "  -------"
   echo "  1  Run on this computer ($DESKTOP)"
   echo "  2  Run on my Android phone (USB)"
-  echo "  3  Run on iPhone / iOS simulator (macOS only)"
-  echo "  4  Build the $DESKTOP app   -> dist/"
-  echo "  5  Build Android APK        -> dist/LanBeam.apk"
-  echo "  6  Run tests"
-  echo "  7  Check my setup (flutter doctor)"
-  read -r -p "  Choose 1-7 (Enter = 1) " c
+  echo "  3  Run on Android emulator (starts it if needed)"
+  echo "  4  Run on iPhone / iOS simulator (macOS only)"
+  echo "  5  Build the $DESKTOP app   -> dist/"
+  echo "  6  Build Android APK        -> dist/LanBeam.apk"
+  echo "  7  Install APK on emulator (starts it, builds, installs)"
+  echo "  8  Run tests"
+  echo "  9  Check my setup (flutter doctor)"
+  read -r -p "  Choose 1-9 (Enter = 1) " c
   case "$c" in
-    ""|1) action=desktop ;; 2) action=android ;; 3) action=ios ;; 4) action=build ;;
-    5) action=build-apk ;; 6) action=test ;; 7) action=doctor ;; *) fail "Unknown choice '$c'." ;;
+    ""|1) action=desktop ;; 2) action=android ;; 3) action=emulator ;; 4) action=ios ;; 5) action=build ;;
+    6) action=build-apk ;; 7) action=install-apk ;; 8) action=test ;; 9) action=doctor ;; *) fail "Unknown choice '$c'." ;;
   esac
 fi
 
@@ -138,6 +171,8 @@ case "$action" in
   desktop) info "Starting LanBeam on this computer"; flutter run -d "$DESKTOP" ;;
   android) id="$(device_id android)"; [ -n "$id" ] || { phone_help; exit 1; }; flutter run -d "$id" ;;
   ios) id="$(device_id ios)"; [ -n "$id" ] || fail "No iPhone or simulator found (open Simulator or connect an iPhone)."; flutter run -d "$id" ;;
+  emulator) start_emulator; flutter run -d "$EMU_ID" ;;
+  install-apk) start_emulator; build_apk ;;
   build) build_desktop ;;
   build-apk) build_apk ;;
   test) flutter test test/core ;;
