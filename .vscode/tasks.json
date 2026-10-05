@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "LanBeam: Update & run on this computer",
+      "type": "shell",
+      "command": "./run.sh desktop",
+      "windows": { "command": ".\\run.bat windows" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "LanBeam: Update & run on Android phone",
+      "type": "shell",
+      "command": "./run.sh android",
+      "windows": { "command": ".\\run.bat android" },
+      "problemMatcher": []
+    },
+    {
+      "label": "LanBeam: Build installable apps (dist/)",
+      "type": "shell",
+      "command": "./run.sh build && ./run.sh build-apk",
+      "windows": { "command": ".\\run.bat all" },
+      "problemMatcher": []
+    },
+    {
+      "label": "LanBeam: Run tests",
+      "type": "shell",
+      "command": "./run.sh test",
+      "windows": { "command": ".\\run.bat test -NoUpdate" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "LanBeam: Check setup (flutter doctor)",
+      "type": "shell",
+      "command": "./run.sh doctor",
+      "windows": { "command": ".\\run.bat doctor" },
+      "problemMatcher": []
+    },
+    {
+      "label": "flutter pub get",
+      "type": "shell",
+      "command": "flutter pub get",
+      "problemMatcher": []
+    }
+  ]
+}

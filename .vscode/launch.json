@@ -2,38 +2,51 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "LanBeam (pick device in status bar)",
+      "name": "LanBeam (debug, pick device in status bar)",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main.dart"
+      "program": "lib/main.dart",
+      "preLaunchTask": "flutter pub get"
     },
     {
       "name": "LanBeam (profile)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "flutterMode": "profile"
+      "flutterMode": "profile",
+      "preLaunchTask": "flutter pub get"
     },
     {
       "name": "LanBeam (release)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "flutterMode": "release"
+      "flutterMode": "release",
+      "preLaunchTask": "flutter pub get"
     },
     {
       "name": "Core tests",
       "request": "launch",
       "type": "dart",
-      "program": "test/core/"
+      "program": "test/core/",
+      "preLaunchTask": "flutter pub get"
     },
     {
       "name": "Headless CLI peer (receive)",
       "request": "launch",
       "type": "dart",
       "program": "tool/lanbeam_cli.dart",
-      "args": ["--data", "${workspaceFolder}/.cli-peer", "--name", "CLI Peer", "--port", "45900", "qr"],
-      "console": "terminal"
+      "args": [
+        "--data",
+        "${workspaceFolder}/.cli-peer",
+        "--name",
+        "CLI Peer",
+        "--port",
+        "45900",
+        "qr"
+      ],
+      "console": "terminal",
+      "preLaunchTask": "flutter pub get"
     }
   ]
 }

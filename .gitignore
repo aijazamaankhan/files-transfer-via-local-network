@@ -49,3 +49,10 @@ app.*.map.json
 
 # Local CLI peer data
 .cli-peer/
+
+# Launcher output
+dist/
+
+# Not a Node project (stray files from running npm here)
+package-lock.json
+node_modules/
